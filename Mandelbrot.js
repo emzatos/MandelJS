@@ -92,6 +92,12 @@ function mandelbrot(px, py, view) {
 	const MAX = IMAX;
 	let x0 = ((px - view.w/2)*view.scale-view.x),
 	y0 = ((py - view.h/2)*view.scale-view.y);
+
+	let q = (x0-1/4) * (x0-1/4) + y0*y0;
+	if(q * (q + (x0-1/4)) < y0 * y0 * 1/4 || (x0+1) * (x0+1) + y0*y0 < 1/16){
+		return IMAX;
+	}
+
 	let x = 0, y = 0;
 	let x2, y2;
 	var iteration = 0;
