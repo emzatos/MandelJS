@@ -1,9 +1,10 @@
-let IMAX = 80;
-const ZOOM_RATE = 1.1;
+let IMAX = 200;
+const ZOOM_RATE = 1.3;
 
 let canvas = document.getElementById("canvas");
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
+
 let ctx = canvas.getContext("2d");
 
 let view = {
@@ -53,7 +54,10 @@ function eDrag(x,y) {
 }
 
 //generate color lookup table
-
+let f  = function(color){
+	return chroma(color).rgb();
+}
+let colormap = chroma.scale(['black','white']).domain([0,IMAX]).colors(300).map(f);
 
 render();
 
@@ -69,15 +73,15 @@ function render() {
 	let idata = ctx.getImageData(0,0,canvas.width,canvas.height);
 	let data = idata.data;
 	let index = 0;
-	let scale = chroma.scale(['navy','white', 'orange', 'red', 'black']).domain([0,50,75,150,250]);
+	
 
 	for (let y=0,h=canvas.height; y<h; y++) {
 		for (let x=0,w=canvas.width; x<w; x++) {
-			let m = mandelbrot(x,y,view)*4;
-			let colormap = scale(m).rgb();
-			data[index+0] = colormap[0];
-			data[index+1] = colormap[1];
-			data[index+2] = colormap[2];
+			let m = mandelbrot(x,y,view);
+
+			data[index+0] = colormap[m][0];
+			data[index+1] = colormap[m][1];
+			data[index+2] = colormap[m][2];
 			data[index+3] = 255;
 			index = index + 4;
 		}
@@ -85,8 +89,6 @@ function render() {
 	ctx.putImageData(idata,0,0);
 	requestAnimationFrame(render);
 }
-
-function channel(x) {return Math.round(Math.min(1,Math.max(0,x))*255);}
 
 function mandelbrot(px, py, view) {
 	const MAX = IMAX;
