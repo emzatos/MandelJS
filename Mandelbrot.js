@@ -1,75 +1,105 @@
+let IMAX = 80;
+const ZOOM_RATE = 1.1;
+
+let canvas = document.getElementById("canvas");
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+let ctx = canvas.getContext("2d");
+
+let view = {
+	x: 0,
+	y: 0,
+	w: canvas.width,
+	h: canvas.height,
+	scale: 0.004
+};
+let dragging = false;
+let dragStart = {x: 0, y: 0};
+let viewStart = {x: 0, y: 0};
+let gfxDirty = true;
+
+//event listeners
+canvas.addEventListener("mousedown",function(event){eDragStart(event.layerX, event.layerY)},false);
+document.addEventListener("mouseup",function(event){eDragEnd()},false);
+document.addEventListener("mousemove", function(event){eDrag(event.pageX - canvas.offsetLeft, event.pageY - canvas.offsetTop)},false);
+canvas.addEventListener("wheel", function(event){
+	gfxDirty = true;
+	let dy = event.deltaY;
+	if (dy < 0)
+		view.scale /= ZOOM_RATE;
+	else if (dy > 0)
+		view.scale *= ZOOM_RATE;
+	else
+		gfxDirty = false;
+},false);
+
+function eDragStart(x,y) {
+	dragging = true;
+	dragStart.x = event.layerX;
+	dragStart.y = event.layerY;
+	viewStart.x = view.x;
+	viewStart.y = view.y;
+}
+function eDragEnd() {
+	dragging = false;
+	gfxDirty = true;
+}
+function eDrag(x,y) {
+	if (dragging) {
+		view.x = viewStart.x + (x - dragStart.x)*view.scale;
+		view.y = viewStart.y + (y - dragStart.y)*view.scale;
+		gfxDirty = true;
+	}
+}
+
+//generate color lookup table
 
 
+render();
 
- function mandel(px, py){
- 	x0 = scaleX(px)
+function render() {
+	if (!gfxDirty) {
+		requestAnimationFrame(render);
+		return;
+	}
+	gfxDirty = false;
 
- 	y0 = scaleY(py);
- 	x = 0.0
- 	y = 0.0
- 	iteration = 0
- 	max_iteration = 250
- 	while (x*x + y*y < 2*2 && iteration < max_iteration) {
- 		xtemp = x*x - y*y + x0
- 		y = 2*x*y + y0
- 		x = xtemp
- 		iteration = iteration + 1
- 	}
+	ctx.fillStyle = "lime";
+	ctx.fillRect(0,0,canvas.width,canvas.height);
+	let idata = ctx.getImageData(0,0,canvas.width,canvas.height);
+	let data = idata.data;
+	let index = 0;
+	let scale = chroma.scale(['navy','white', 'orange', 'red', 'black']).domain([0,50,75,150,250]);
 
- 	return iteration;
- }
+	for (let y=0,h=canvas.height; y<h; y++) {
+		for (let x=0,w=canvas.width; x<w; x++) {
+			let m = mandelbrot(x,y,view)*4;
+			let colormap = scale(m).rgb();
+			data[index+0] = colormap[0];
+			data[index+1] = colormap[1];
+			data[index+2] = colormap[2];
+			data[index+3] = 255;
+			index = index + 4;
+		}
+	}
+	ctx.putImageData(idata,0,0);
+	requestAnimationFrame(render);
+}
 
- function scaleX(input){
- 	var output_start = -2.5;
- 	var output_end = 1;
- 	var input_start = 0;
- 	var input_end = 800;
+function channel(x) {return Math.round(Math.min(1,Math.max(0,x))*255);}
 
- 	return output_start + ((output_end - output_start) / (input_end - input_start)) * (input - input_start);
-
- }
-
- function scaleY(input){
- 	var output_start = -1;
- 	var output_end = 1;
- 	var input_start = 0;
- 	var input_end = 550;
-
- 	return output_start + ((output_end - output_start) / (input_end - input_start)) * (input - input_start);
-
- }
-
- function draw() {
- 	var canvas = document.getElementById('canvas');
- 	canvas.width = window.innerWidth;
- 	canvas.height = window.innerHeight;
-
- 	if (canvas.getContext) {
-
- 		var ctx = canvas.getContext('2d');
- 		var idata = ctx.getImageData(0,0,canvas.width, canvas.height);
- 		var data = idata.data;
- 		var scale = chroma.scale(['navy','white', 'orange', 'red', 'black']).domain([0,50,75,150,250]);
-
- 		for(var x=0; x<canvas.width; x++){
- 			for(var y=0; y<canvas.height; y++){
- 				var index = (y*canvas.width+x)*4;
- 				var result = mandel(x,y);
- 				var color = scale(result).rgb();
-
- 				data[index+0] = color[0]
- 				data[index+1] = color[1];
- 				data[index+2] = color[2];
- 				data[index+3] = 255;
-
- 				
-
- 			}
- 		}
-
- 		ctx.putImageData(idata, 0, 0);
-
-
-
- 	}
- }
+function mandelbrot(px, py, view) {
+	const MAX = IMAX;
+	let x0 = ((px - view.w/2)*view.scale-view.x),
+	y0 = ((py - view.h/2)*view.scale-view.y);
+	let x = 0, y = 0;
+	let x2, y2;
+	var iteration = 0;
+	while (iteration < MAX && (x2=x*x) + (y2=y*y) < 4) {
+		let xtemp = x2 - y2 + x0;
+		y = 2*x*y + y0;
+		x = xtemp;
+		iteration++;
+	}
+	return iteration * IMAX / MAX;
+}
