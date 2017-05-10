@@ -49,7 +49,7 @@
  		var ctx = canvas.getContext('2d');
  		var idata = ctx.getImageData(0,0,canvas.width, canvas.height);
  		var data = idata.data;
- 		var scale = chroma.scale(['white', 'black']).domain([0,250]);
+ 		var scale = chroma.scale(['navy','white', 'orange', 'red', 'black']).domain([0,50,75,150,250]);
 
  		for(var x=0; x<canvas.width; x++){
  			for(var y=0; y<canvas.height; y++){
