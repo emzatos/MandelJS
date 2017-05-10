@@ -3,6 +3,7 @@
 
  function mandel(px, py){
  	x0 = scaleX(px)
+
  	y0 = scaleY(py);
  	x = 0.0
  	y = 0.0
@@ -22,7 +23,7 @@
  	var output_start = -2.5;
  	var output_end = 1;
  	var input_start = 0;
- 	var input_end = 400;
+ 	var input_end = 800;
 
  	return output_start + ((output_end - output_start) / (input_end - input_start)) * (input - input_start);
 
@@ -32,7 +33,7 @@
  	var output_start = -1;
  	var output_end = 1;
  	var input_start = 0;
- 	var input_end = 400;
+ 	var input_end = 550;
 
  	return output_start + ((output_end - output_start) / (input_end - input_start)) * (input - input_start);
 
