@@ -1,8 +1,11 @@
 let IMAX = 200;
 const ZOOM_RATE = 1.1;
 const USE_RECTS = false;
+const HQ_DEBOUNCE = 100;
 
 let profile = false;
+let downsample = 1, D_MAX = 8;
+let hqTimeout = -1;
 let canvas = document.getElementById("canvas");
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
@@ -50,19 +53,27 @@ function render() {
 	}
 
 	let data = idata.data;
-	let index = 0;
-
-	for (let y=0,h=canvas.height; y<h; y++) {
-		for (let x=0,w=canvas.width; x<w; x++) {
+	let step = downsample, invstep = 1/step;
+	for (let y=0,h=canvas.height; y<h; y=y+step) {
+		for (let x=0,w=canvas.width; x<w; x=x+step) {
 			let m = mandelbrot(x,y,view);
 
-			ibuffer32[index] = colormap[m];
-			index = index + 1;
+			ibuffer32[y*w*invstep+x*invstep] = colormap[m];
 		}
 	}
 	data.set(ibuffer8);
 	ctx.putImageData(idata,0,0);
+	if (step !== 0)
+		ctx.drawImage(canvas,0,0,canvas.width*step,canvas.height*step);
  	requestAnimationFrame(render);
+ 	
+ 	if (downsample>1) {
+ 		downsample = Math.floor(downsample/2);
+ 		clearTimeout(hqTimeout);
+ 		hqTimeout = setTimeout(function(){
+ 			gfxDirty = true;
+ 		}, HQ_DEBOUNCE);
+ 	}
  }
 
 function mandelbrot(px, py, view) {
