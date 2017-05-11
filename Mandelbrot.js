@@ -8,7 +8,7 @@ class Rectangle{
 	}
 }
 
-let IMAX = 299;
+let IMAX = 200;
 const ZOOM_RATE = 1.1;
 
 let profile = false;
@@ -80,6 +80,9 @@ function eDrag(x,y) {
 let f  = function(color){
 	return chroma(color).rgb();
 }
+let colormap_rgb = chroma.scale(['navy','white','red','black'])
+	.domain([0,IMAX/3,2*IMAX/3, IMAX])
+	.colors(IMAX+1).map(f);
 let colormap = chroma.scale(['navy','white','red','black'])
 	.domain([0,IMAX/3,2*IMAX/3, IMAX])
 	.colors(IMAX+1).map(col => {
@@ -96,6 +99,15 @@ function render() {
 	}
 	gfxDirty = false;
 	
+	/* 
+	To switch from normal render to RECTANGLE RENDER
+	simply uncomment 108,109 and comment out 111-123
+	*/
+
+   
+	// fillRects(new Rectangle(0,0,canvas.width/2, canvas.height));
+	// fillRects(new Rectangle(canvas.width/2, 0, canvas.width/2, canvas.height));
+
 	let data = idata.data;
 	let index = 0;
 
@@ -109,18 +121,19 @@ function render() {
 	}
 	data.set(ibuffer8);
 	ctx.putImageData(idata,0,0);
-	requestAnimationFrame(render);
-}
+ 	requestAnimationFrame(render);
+ }
+
 
 
 function checkRect(rect){
 	let values = []
 
-	for(var i=rect.x; i<=rect.w; i++){
-		if(i == rect.x || i == rect.w){
+	for(var i=rect.x; i<=rect.x+rect.w; i++){
+		if(i == rect.x || i == rect.x+rect.w){
 			//calculate whole column
 
-			for(var j=y; j<=rect.h; j++){
+			for(var j=rect.y; j<=rect.y+rect.h; j++){
 				values.push(mandelbrot(i, j, view));
 			}
 
@@ -132,10 +145,19 @@ function checkRect(rect){
 		}
 	}
 	let ref = values[0]
-	if(values.every(x => x == ref)){
-		return ref;
-	}else{
+	if(values.length == 0){
+		console.log("ficK");
 		return -1;
+	}
+	if(values.every(x => x >= IMAX)){
+		return 1;
+	}
+
+	if(values.every(x=> x < IMAX))
+		return 2;
+
+	else{
+		return 0;
 	}
 
 
@@ -143,18 +165,32 @@ function checkRect(rect){
 
 
 function fillRects(rect){
+	//console.log(rect)
 	var ref = checkRect(rect);
-	if(ref != -1){
-
-		//ctx.fillStyle 
-		ctx.rect()
+	if(ref == 1){
 
 
-	}else{
+		ctx.fillStyle = "black"
+		ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
+		return;
+
+
+	}
+
+	if(ref == 2){
+		ctx.fillStyle = "blue";
+		ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
+		return;
+	}
+
+	else if (ref == 0){
 		fillRects(new Rectangle(rect.x, rect.y, rect.w/2, rect.h/2));
 		fillRects(new Rectangle(rect.x + rect.w/2, rect.y, rect.w/2, rect.h/2));
 		fillRects(new Rectangle(rect.x, rect.y + rect.h/2, rect.w/2, rect.h/2));
 		fillRects(new Rectangle(rect.x + rect.w/2, rect.y + rect.h/2, rect.w/2, rect.h/2));
+	}else{
+		ctx.fillStyle = "red";
+		ctx.fillRect(rect.x, rect.y, 1,1);
 	}
 }
 
