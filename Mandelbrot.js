@@ -1,5 +1,15 @@
+
+class Rectangle{
+	constructor(x,y,w,h){
+		this.x = x;
+		this.y = y;
+		this.w = w;
+		this.h = h;
+	}
+}
+
 let IMAX = 299;
-const ZOOM_RATE = 1.3;
+const ZOOM_RATE = 1.1;
 
 let profile = false;
 let canvas = document.getElementById("canvas");
@@ -19,6 +29,8 @@ let view = {
 	h: canvas.height,
 	scale: 0.004
 };
+
+
 let dragging = false;
 let dragStart = {x: 0, y: 0};
 let viewStart = {x: 0, y: 0};
@@ -38,6 +50,12 @@ canvas.addEventListener("wheel", function(event){
 	else
 		gfxDirty = false;
 },false);
+
+
+function printRGB(color){
+	return 'rgb(' + color[0] + ',' + color[1] + ',' + color[2] + ')';
+}
+
 
 function eDragStart(x,y) {
 	dragging = true;
@@ -93,6 +111,54 @@ function render() {
 	ctx.putImageData(idata,0,0);
 	requestAnimationFrame(render);
 }
+
+
+function checkRect(rect){
+	let values = []
+
+	for(var i=rect.x; i<=rect.w; i++){
+		if(i == rect.x || i == rect.w){
+			//calculate whole column
+
+			for(var j=y; j<=rect.h; j++){
+				values.push(mandelbrot(i, j, view));
+			}
+
+		}else{
+			//calculate first and last points
+			values.push(mandelbrot(i, rect.y, view));
+			values.push(mandelbrot(i, rect.h, view));
+
+		}
+	}
+	let ref = values[0]
+	if(values.every(x => x == ref)){
+		return ref;
+	}else{
+		return -1;
+	}
+
+
+}
+
+
+function fillRects(rect){
+	var ref = checkRect(rect);
+	if(ref != -1){
+
+		//ctx.fillStyle 
+		ctx.rect()
+
+
+	}else{
+		fillRects(new Rectangle(rect.x, rect.y, rect.w/2, rect.h/2));
+		fillRects(new Rectangle(rect.x + rect.w/2, rect.y, rect.w/2, rect.h/2));
+		fillRects(new Rectangle(rect.x, rect.y + rect.h/2, rect.w/2, rect.h/2));
+		fillRects(new Rectangle(rect.x + rect.w/2, rect.y + rect.h/2, rect.w/2, rect.h/2));
+	}
+}
+
+
 
 function mandelbrot(px, py, view) {
 	let x0 = ((px - view.w/2)*view.scale-view.x),
