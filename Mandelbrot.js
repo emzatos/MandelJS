@@ -1,5 +1,6 @@
 let IMAX = 200;
 const ZOOM_RATE = 1.1;
+const USE_RECTS = false;
 
 let profile = false;
 let canvas = document.getElementById("canvas");
@@ -20,42 +21,10 @@ let view = {
 	scale: 0.004
 };
 
-
-let dragging = false;
-let dragStart = {x: 0, y: 0};
-let viewStart = {x: 0, y: 0};
-let gfxDirty = true;
-
-//event listeners
-canvas.addEventListener("mousedown",function(event){eDragStart(event.layerX, event.layerY)},false);
-document.addEventListener("mouseup",function(event){eDragEnd()},false);
-document.addEventListener("mousemove", function(event){eDrag(event.pageX - canvas.offsetLeft, event.pageY - canvas.offsetTop)},false);
-canvas.addEventListener("wheel", function(event){
-	gfxDirty = true;
-	let dy = event.deltaY;
-	if (dy < 0)
-		view.scale /= ZOOM_RATE;
-	else if (dy > 0)
-		view.scale *= ZOOM_RATE;
-	else
-		gfxDirty = false;
-},false);
-
-
-function printRGB(color){
-	return 'rgb(' + color[0] + ',' + color[1] + ',' + color[2] + ')';
-}
-
-
-
-
 //generate color lookup table
-let f  = function(color){
-	return chroma(color).rgb();
-}
 let colormap_rgb = chroma.scale(['navy','white','red','black'])
 	.domain([0,IMAX/3,2*IMAX/3, IMAX])
-	.colors(IMAX+1).map(f);
+	.colors(IMAX+1).map(col => chroma(col).rgb());
 let colormap = chroma.scale(['navy','white','red','black'])
 	.domain([0,IMAX/3,2*IMAX/3, IMAX])
 	.colors(IMAX+1).map(col => {
@@ -71,15 +40,14 @@ function render() {
 		return;
 	}
 	gfxDirty = false;
-	
-	/* 
-	To switch from normal render to RECTANGLE RENDER
-	simply uncomment 108,109 and comment out 111-123
-	*/
 
-   
-	// fillRects(new Rectangle(0,0,canvas.width/2, canvas.height));
-	// fillRects(new Rectangle(canvas.width/2, 0, canvas.width/2, canvas.height));
+	//rectangle "optimization"
+	if (USE_RECTS) {
+		fillRects(new Rectangle(0,0,canvas.width/2, canvas.height));
+		fillRects(new Rectangle(canvas.width/2, 0, canvas.width/2, canvas.height));
+		requestAnimationFrame(render);
+		return;
+	}
 
 	let data = idata.data;
 	let index = 0;
@@ -96,8 +64,6 @@ function render() {
 	ctx.putImageData(idata,0,0);
  	requestAnimationFrame(render);
  }
-
-
 
 function mandelbrot(px, py, view) {
 	let x0 = ((px - view.w/2)*view.scale-view.x),
@@ -118,4 +84,8 @@ function mandelbrot(px, py, view) {
 		iteration++;
 	}
 	return iteration;
+}
+
+function printRGB(color){
+	return 'rgb(' + color[0] + ',' + color[1] + ',' + color[2] + ')';
 }
