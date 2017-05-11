@@ -1,13 +1,3 @@
-
-class Rectangle{
-	constructor(x,y,w,h){
-		this.x = x;
-		this.y = y;
-		this.w = w;
-		this.h = h;
-	}
-}
-
 let IMAX = 200;
 const ZOOM_RATE = 1.1;
 
@@ -57,24 +47,7 @@ function printRGB(color){
 }
 
 
-function eDragStart(x,y) {
-	dragging = true;
-	dragStart.x = event.layerX;
-	dragStart.y = event.layerY;
-	viewStart.x = view.x;
-	viewStart.y = view.y;
-}
-function eDragEnd() {
-	dragging = false;
-	gfxDirty = true;
-}
-function eDrag(x,y) {
-	if (dragging) {
-		view.x = viewStart.x + (x - dragStart.x)*view.scale;
-		view.y = viewStart.y + (y - dragStart.y)*view.scale;
-		gfxDirty = true;
-	}
-}
+
 
 //generate color lookup table
 let f  = function(color){
@@ -123,76 +96,6 @@ function render() {
 	ctx.putImageData(idata,0,0);
  	requestAnimationFrame(render);
  }
-
-
-
-function checkRect(rect){
-	let values = []
-
-	for(var i=rect.x; i<=rect.x+rect.w; i++){
-		if(i == rect.x || i == rect.x+rect.w){
-			//calculate whole column
-
-			for(var j=rect.y; j<=rect.y+rect.h; j++){
-				values.push(mandelbrot(i, j, view));
-			}
-
-		}else{
-			//calculate first and last points
-			values.push(mandelbrot(i, rect.y, view));
-			values.push(mandelbrot(i, rect.h, view));
-
-		}
-	}
-	let ref = values[0]
-	if(values.length == 0){
-		console.log("ficK");
-		return -1;
-	}
-	if(values.every(x => x >= IMAX)){
-		return 1;
-	}
-
-	if(values.every(x=> x < IMAX))
-		return 2;
-
-	else{
-		return 0;
-	}
-
-
-}
-
-
-function fillRects(rect){
-	//console.log(rect)
-	var ref = checkRect(rect);
-	if(ref == 1){
-
-
-		ctx.fillStyle = "black"
-		ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
-		return;
-
-
-	}
-
-	if(ref == 2){
-		ctx.fillStyle = "blue";
-		ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
-		return;
-	}
-
-	else if (ref == 0){
-		fillRects(new Rectangle(rect.x, rect.y, rect.w/2, rect.h/2));
-		fillRects(new Rectangle(rect.x + rect.w/2, rect.y, rect.w/2, rect.h/2));
-		fillRects(new Rectangle(rect.x, rect.y + rect.h/2, rect.w/2, rect.h/2));
-		fillRects(new Rectangle(rect.x + rect.w/2, rect.y + rect.h/2, rect.w/2, rect.h/2));
-	}else{
-		ctx.fillStyle = "red";
-		ctx.fillRect(rect.x, rect.y, 1,1);
-	}
-}
 
 
 
