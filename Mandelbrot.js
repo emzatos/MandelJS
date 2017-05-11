@@ -1,12 +1,13 @@
-let IMAX = 200;
+let IMAX = 299;
 const ZOOM_RATE = 1.3;
 
+let profile = false;
 let canvas = document.getElementById("canvas");
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
 let ctx = canvas.getContext("2d");
-
+let idata = ctx.getImageData(0,0,canvas.width,canvas.height);
 let view = {
 	x: 0,
 	y: 0,
@@ -57,20 +58,21 @@ function eDrag(x,y) {
 let f  = function(color){
 	return chroma(color).rgb();
 }
-let colormap = chroma.scale(['black','white']).domain([0,IMAX]).colors(300).map(f);
+let colormap = chroma.scale(['navy','white','red','black']).domain([0,IMAX/3,2*IMAX/3, IMAX]).colors(300).map(f);
 
 render();
 
 function render() {
-	if (!gfxDirty) {
+	if (!gfxDirty && !profile) {
+
 		requestAnimationFrame(render);
 		return;
 	}
 	gfxDirty = false;
 
-	ctx.fillStyle = "lime";
-	ctx.fillRect(0,0,canvas.width,canvas.height);
-	let idata = ctx.getImageData(0,0,canvas.width,canvas.height);
+	// ctx.fillStyle = "lime";
+	// ctx.fillRect(0,0,canvas.width,canvas.height);
+	
 	let data = idata.data;
 	let index = 0;
 	
