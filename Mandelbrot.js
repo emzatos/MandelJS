@@ -64,7 +64,7 @@ let f  = function(color){
 }
 let colormap = chroma.scale(['navy','white','red','black'])
 	.domain([0,IMAX/3,2*IMAX/3, IMAX])
-	.colors(300).map(col => {
+	.colors(IMAX+1).map(col => {
 		let rgb = chroma(col).rgb();
 		return (255 << 24) | (rgb[2] << 16) | (rgb[1] << 8) | (rgb[0]);
 	});
@@ -95,23 +95,22 @@ function render() {
 }
 
 function mandelbrot(px, py, view) {
-	const MAX = IMAX;
 	let x0 = ((px - view.w/2)*view.scale-view.x),
-	y0 = ((py - view.h/2)*view.scale-view.y);
+		y0 = ((py - view.h/2)*view.scale-view.y);
 
-	let q = (x0-1/4) * (x0-1/4) + y0*y0;
-	if(q * (q + (x0-1/4)) < y0 * y0 * 1/4 || (x0+1) * (x0+1) + y0*y0 < 1/16){
+	let q = (x0-0.25) * (x0-0.25) + y0*y0;
+	if(q * (q + (x0-0.25)) < y0 * y0 * 0.25 || (x0+1) * (x0+1) + y0*y0 < 0.0625){
 		return IMAX;
 	}
 
 	let x = 0, y = 0;
 	let x2, y2;
 	var iteration = 0;
-	while (iteration < MAX && (x2=x*x) + (y2=y*y) < 4) {
+	while (iteration < IMAX && (x2=x*x) + (y2=y*y) < 4) {
 		let xtemp = x2 - y2 + x0;
 		y = 2*x*y + y0;
 		x = xtemp;
 		iteration++;
 	}
-	return iteration * IMAX / MAX;
+	return iteration;
 }
