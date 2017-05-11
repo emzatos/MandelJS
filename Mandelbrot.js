@@ -8,6 +8,10 @@ canvas.height = window.innerHeight;
 
 let ctx = canvas.getContext("2d");
 let idata = ctx.getImageData(0,0,canvas.width,canvas.height);
+let ibuffer = new ArrayBuffer(idata.data.length);
+let ibuffer8 = new Uint8ClampedArray(ibuffer);
+let ibuffer32 = new Uint32Array(ibuffer);
+
 let view = {
 	x: 0,
 	y: 0,
@@ -58,36 +62,34 @@ function eDrag(x,y) {
 let f  = function(color){
 	return chroma(color).rgb();
 }
-let colormap = chroma.scale(['navy','white','red','black']).domain([0,IMAX/3,2*IMAX/3, IMAX]).colors(300).map(f);
+let colormap = chroma.scale(['navy','white','red','black'])
+	.domain([0,IMAX/3,2*IMAX/3, IMAX])
+	.colors(300).map(col => {
+		let rgb = chroma(col).rgb();
+		return (255 << 24) | (rgb[2] << 16) | (rgb[1] << 8) | (rgb[0]);
+	});
 
 render();
 
 function render() {
 	if (!gfxDirty && !profile) {
-
 		requestAnimationFrame(render);
 		return;
 	}
 	gfxDirty = false;
-
-	// ctx.fillStyle = "lime";
-	// ctx.fillRect(0,0,canvas.width,canvas.height);
 	
 	let data = idata.data;
 	let index = 0;
-	
 
 	for (let y=0,h=canvas.height; y<h; y++) {
 		for (let x=0,w=canvas.width; x<w; x++) {
 			let m = mandelbrot(x,y,view);
 
-			data[index+0] = colormap[m][0];
-			data[index+1] = colormap[m][1];
-			data[index+2] = colormap[m][2];
-			data[index+3] = 255;
-			index = index + 4;
+			ibuffer32[index] = colormap[m];
+			index = index + 1;
 		}
 	}
+	data.set(ibuffer8);
 	ctx.putImageData(idata,0,0);
 	requestAnimationFrame(render);
 }
