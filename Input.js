@@ -61,18 +61,18 @@ function eDrag(x,y) {
 		view.x = viewStart.x + (x - dragStart.x)*view.scale;
 		view.y = viewStart.y + (y - dragStart.y)*view.scale;
 		gfxDirty = true;
-		downsample = D_MAX;
+		sampleScale = SCALE_MAX;
 	}
 }
 function eWheel(deltaY) {
 	gfxDirty = true;
-	downsample = D_MAX;
+	sampleScale = SCALE_MAX;
 	if (deltaY < 0)
 		view.scale /= ZOOM_RATE;
 	else if (deltaY > 0)
 		view.scale *= ZOOM_RATE;
 	else {
 		gfxDirty = false;
-		downsample = 1;
+		sampleScale = 1;
 	}
 }
