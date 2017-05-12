@@ -35,6 +35,26 @@ var Json = {
 				color5 : '#EF4339',
 				IMAX: 200 
 			}
+		},
+		"Mandel": {
+			"0": {
+				color1 : 'navy',
+				color2 : 'white',
+				color3 : 'orange',
+				color4 : 'red',
+				color5 : 'black',
+				IMAX: 200 
+			}
+		},
+		"Mandel Invert": {
+			"0": {
+				color1 : 'black',
+				color2 : 'red',
+				color3 : 'orange',
+				color4 : 'white',
+				color5 : 'navy',
+				IMAX: 200 
+			}
 		}
 	},
 	"closed": true,
@@ -87,7 +107,7 @@ gui.addColor(params, 'color2').onChange(updateColors);
 gui.addColor(params, 'color3').onChange(updateColors);
 gui.addColor(params, 'color4').onChange(updateColors);
 gui.addColor(params, 'color5').onChange(updateColors);
-gui.add(params, 'IMAX', 10, 1000).step(1).onChange(updateColors);
+gui.add(params, 'IMAX', 10, 5000).step(1).onChange(updateColors);
 
 
 let gfxDirty = true;
