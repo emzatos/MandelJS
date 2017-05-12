@@ -1,6 +1,46 @@
-let IMAX = 100;
+//var IMAX = 200;
 const ZOOM_RATE = 1.2;
 const USE_RECTS = false;
+
+
+var Json = {
+	"preset": "Quiet Cry",
+	"remembered": {
+		"Quiet Cry": {
+			"0": {
+				color1 : '#1C1D21',
+				color2 : '#31353D',
+				color3 : '#445878',
+				color4 : '#92CDCF',
+				color5 : '#EEEFF7',
+				IMAX: 200 
+			}
+		},
+		"Blue Sky": {
+			"0": {
+				color1 : '#16193B',
+				color2 : '#35478C',
+				color3 : '#4E7AC7',
+				color4 : '#7FB2F0',
+				color5 : '#ADD5F7',
+				IMAX: 200 
+			}
+		},
+		"Sunset Camping": {
+			"0": {
+				color1 : '#2D112C',
+				color2 : '#530031',
+				color3 : '#820233',
+				color4 : '#CA293E',
+				color5 : '#EF4339',
+				IMAX: 200 
+			}
+		}
+	},
+	"closed": true,
+	"folders": {}
+}
+
 
 let profile = false;
 let sampleScale = 1, SCALE_MAX = 12;
@@ -18,20 +58,42 @@ let idata = ctx.getImageData(0,0,canvas.width,canvas.height);
 let view = new Rectangle(0,0,canvas.width,canvas.height);
 view.scale = 0.004;
 
-let gfxDirty = true;
-let renderYstart = 0;
 
-//generate color lookup table
-let colormap_rgb = chroma.scale(['navy','white','red','black'])
-	.domain([0,IMAX/3,2*IMAX/3, IMAX])
-	.colors(IMAX+1).map(col => chroma(col).rgb());
-let colormap = chroma.scale(['navy','white','red','black'])
-	.domain([0,IMAX/3,2*IMAX/3, IMAX])
-	.colors(IMAX+1).map(col => {
+let colormap;
+
+function updateColors(){
+
+	colormap = chroma.scale([params.color1, params.color2, params.color3, params.color4, params.color5].reverse())
+	.domain([0,params.IMAX/4,params.IMAX/2, 3*params.IMAX/4, params.IMAX])
+	.colors(params.IMAX+1).map(col => {
 		let rgb = chroma(col).rgb();
 		return (255 << 24) | (rgb[2] << 16) | (rgb[1] << 8) | (rgb[0]);
 	});
+}
 
+let params = {
+	color1 : '#1C1D21',
+	color2 : '#31353D',
+	color3 : '#445878',
+	color4 : '#92CDCF',
+	color5 : '#EEEFF7',
+	IMAX: 200 
+}
+
+let gui = new dat.GUI({load:Json});
+gui.remember(params);
+gui.addColor(params, 'color1').onChange(updateColors);
+gui.addColor(params, 'color2').onChange(updateColors);
+gui.addColor(params, 'color3').onChange(updateColors);
+gui.addColor(params, 'color4').onChange(updateColors);
+gui.addColor(params, 'color5').onChange(updateColors);
+gui.add(params, 'IMAX', 10, 1000).step(1).onChange(updateColors);
+
+
+let gfxDirty = true;
+let renderYstart = 0;
+
+updateColors();
 frame();
 
 function frame() {
@@ -47,16 +109,16 @@ function frame() {
 		renderYstart = 0;
 
 		//progressively increase sample resolution
-	 	if (sampleScale>1) {
-	 		sampleScale = Math.max(1,Math.floor(sampleScale/4));
-	 		gfxDirty = true;
-	 	}
-	 	else {
-	 		gfxDirty = false;
-	 	}
+		if (sampleScale>1) {
+			sampleScale = Math.max(1,Math.floor(sampleScale/4));
+			gfxDirty = true;
+		}
+		else {
+			gfxDirty = false;
+		}
 	}
 	else {
-		renderYstart = yStop+1;
+		renderYstart = yStop;
 	}
 	
 	requestAnimationFrame(frame);
@@ -66,10 +128,10 @@ function frame() {
  * Renders an area of the screen.
  * Returns the area rendered.
  */
-function render(view, step, yStart=0, timeLimit=50) {
-	let ibuffer = new ArrayBuffer(canvas.width*canvas.height*4);
-	let ibuffer8 = new Uint8ClampedArray(ibuffer);
-	let ibuffer32 = new Uint32Array(ibuffer);
+ function render(view, step, yStart=0, timeLimit=50) {
+ 	let ibuffer = new ArrayBuffer(canvas.width*canvas.height*4);
+ 	let ibuffer8 = new Uint8ClampedArray(ibuffer);
+ 	let ibuffer32 = new Uint32Array(ibuffer);
 
 	//rectangle "optimization"
 	if (USE_RECTS) {
@@ -113,17 +175,19 @@ function refresh() {
 
 function mandelbrot(px, py, view) {
 	let x0 = ((px - view.w/2)*view.scale-view.x),
-		y0 = ((py - view.h/2)*view.scale-view.y);
+	y0 = ((py - view.h/2)*view.scale-view.y);
 
 	let q = (x0-0.25) * (x0-0.25) + y0*y0;
 	if(q * (q + (x0-0.25)) < y0 * y0 * 0.25 || (x0+1) * (x0+1) + y0*y0 < 0.0625){
-		return IMAX;
+
+		return params.IMAX;
+
 	}
 
 	let x = 0, y = 0;
 	let x2, y2;
 	var iteration = 0;
-	while (iteration < IMAX && (x2=x*x) + (y2=y*y) < 4) {
+	while (iteration < params.IMAX && (x2=x*x) + (y2=y*y) < 4) {
 		let xtemp = x2 - y2 + x0;
 		y = 2*x*y + y0;
 		x = xtemp;
