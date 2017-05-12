@@ -1,7 +1,6 @@
 let dragging = false;
 let dragStart = {x: 0, y: 0};
 let viewStart = {x: 0, y: 0};
-let gfxDirty = true;
 
 //event listeners
 canvas.addEventListener("mousedown",function(event){
@@ -54,25 +53,22 @@ function eDragStart(x,y) {
 }
 function eDragEnd() {
 	dragging = false;
-	gfxDirty = true;
+	refresh();
 }
 function eDrag(x,y) {
 	if (dragging) {
 		view.x = viewStart.x + (x - dragStart.x)*view.scale;
 		view.y = viewStart.y + (y - dragStart.y)*view.scale;
-		gfxDirty = true;
-		sampleScale = SCALE_MAX;
+		refresh();
 	}
 }
 function eWheel(deltaY) {
-	gfxDirty = true;
-	sampleScale = SCALE_MAX;
-	if (deltaY < 0)
+	if (deltaY < 0) {
 		view.scale /= ZOOM_RATE;
-	else if (deltaY > 0)
+		refresh();
+	}
+	else if (deltaY > 0) {
 		view.scale *= ZOOM_RATE;
-	else {
-		gfxDirty = false;
-		sampleScale = 1;
+		refresh();
 	}
 }

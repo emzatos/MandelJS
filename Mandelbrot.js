@@ -1,23 +1,25 @@
 let IMAX = 100;
 const ZOOM_RATE = 1.2;
 const USE_RECTS = false;
-const SAMPLE_DEBOUNCE = 100;
 
 let profile = false;
-let sampleScale = 1, SCALE_MAX = 8;
-let sampleTimeout = -1;
+let sampleScale = 1, SCALE_MAX = 12;
 let canvas = document.getElementById("canvas");
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
+let tempcanvas = document.createElement("canvas");
+tempcanvas.width = canvas.width;
+tempcanvas.height = canvas.height;
 
 let ctx = canvas.getContext("2d");
+let tctx = tempcanvas.getContext("2d");
 let idata = ctx.getImageData(0,0,canvas.width,canvas.height);
-let ibuffer = new ArrayBuffer(idata.data.length);
-let ibuffer8 = new Uint8ClampedArray(ibuffer);
-let ibuffer32 = new Uint32Array(ibuffer);
 
 let view = new Rectangle(0,0,canvas.width,canvas.height);
 view.scale = 0.004;
+
+let gfxDirty = true;
+let renderYstart = 0;
 
 //generate color lookup table
 let colormap_rgb = chroma.scale(['navy','white','red','black'])
@@ -40,20 +42,35 @@ function frame() {
 	}
 
 	//render whole screen
-	render(view, sampleScale, new Rectangle(0,0,canvas.width,canvas.height));
+	let yStop = render(view, sampleScale, renderYstart);
+	if (yStop >= canvas.height) {
+		renderYstart = 0;
 
-	//progressively increase sample resolution
- 	if (sampleScale>1) {
- 		sampleScale = Math.floor(sampleScale/2);
- 		clearTimeout(sampleTimeout);
- 		sampleTimeout = setTimeout(function(){
- 			gfxDirty = true;
- 		}, SAMPLE_DEBOUNCE);
- 	}
+		//progressively increase sample resolution
+	 	if (sampleScale>1) {
+	 		sampleScale = Math.max(1,Math.floor(sampleScale/4));
+	 		gfxDirty = true;
+	 	}
+	 	else {
+	 		gfxDirty = false;
+	 	}
+	}
+	else {
+		renderYstart = yStop+1;
+	}
+	
 	requestAnimationFrame(frame);
 }
 
-function render(view, step, screenRect) {
+/**
+ * Renders an area of the screen.
+ * Returns the area rendered.
+ */
+function render(view, step, yStart=0, timeLimit=50) {
+	let ibuffer = new ArrayBuffer(canvas.width*canvas.height*4);
+	let ibuffer8 = new Uint8ClampedArray(ibuffer);
+	let ibuffer32 = new Uint32Array(ibuffer);
+
 	//rectangle "optimization"
 	if (USE_RECTS) {
 		fillRects(new Rectangle(0,0,canvas.width/2, canvas.height));
@@ -63,23 +80,35 @@ function render(view, step, screenRect) {
 	}
 
 	//compute mandelbrot
-	let data = idata.data;
+	let t0 = Date.now();
 	let invstep = 1/step;
-	for (let y=0,h=canvas.height; y<h; y=y+step) {
-		for (let x=0,w=canvas.width; x<w; x=x+step) {
-			let m = mandelbrot(x,y,view);
 
+	let x,y;
+	let w = canvas.width, h = canvas.height;
+	for (y=yStart; y<h; y=y+step) {
+		for (x=0; x<w; x=x+step) {
+			let m = mandelbrot(x,y,view);
 			ibuffer32[y*w*invstep+x*invstep] = colormap[m];
+		}
+		if (Date.now() - t0 > timeLimit) {
+			break;
 		}
 	}
 
 	//copy data back to canvas
-	data.set(ibuffer8);
-	ctx.putImageData(idata,0,0);
+	idata.data.set(ibuffer8);
+	tctx.putImageData(idata,0,0);
 
-	//upscale canvas if necessary
-	if (step !== 0)
-		ctx.drawImage(canvas,0,0,canvas.width*step,canvas.height*step);	
+	//upscale to canvas
+	ctx.drawImage(tempcanvas,0,0,canvas.width*step,canvas.height*step);
+
+	return y;
+}
+
+function refresh() {
+	sampleScale = SCALE_MAX;
+	renderYstart = 0;
+	gfxDirty = true;
 }
 
 function mandelbrot(px, py, view) {
