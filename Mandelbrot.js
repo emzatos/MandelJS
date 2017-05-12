@@ -1,7 +1,16 @@
 //var IMAX = 200;
 const ZOOM_RATE = 1.2;
 const USE_RECTS = false;
+let epsilon = 0.000001;
 
+let params = {
+	color1 : '#1C1D21',
+	color2 : '#31353D',
+	color3 : '#445878',
+	color4 : '#92CDCF',
+	color5 : '#EEEFF7',
+	IMAX: 200 
+}
 
 var Json = {
 	"preset": "Quiet Cry",
@@ -13,7 +22,7 @@ var Json = {
 				color3 : '#445878',
 				color4 : '#92CDCF',
 				color5 : '#EEEFF7',
-				IMAX: 200 
+
 			}
 		},
 		"Blue Sky": {
@@ -23,7 +32,7 @@ var Json = {
 				color3 : '#4E7AC7',
 				color4 : '#7FB2F0',
 				color5 : '#ADD5F7',
-				IMAX: 200 
+
 			}
 		},
 		"Sunset Camping": {
@@ -33,7 +42,7 @@ var Json = {
 				color3 : '#820233',
 				color4 : '#CA293E',
 				color5 : '#EF4339',
-				IMAX: 200 
+
 			}
 		},
 		"Mandel": {
@@ -43,7 +52,7 @@ var Json = {
 				color3 : 'orange',
 				color4 : 'red',
 				color5 : 'black',
-				IMAX: 200 
+
 			}
 		},
 		"Mandel Invert": {
@@ -53,7 +62,7 @@ var Json = {
 				color3 : 'orange',
 				color4 : 'white',
 				color5 : 'navy',
-				IMAX: 200 
+
 			}
 		}
 	},
@@ -61,7 +70,7 @@ var Json = {
 	"folders": {}
 }
 
-
+let prevx0=0, prevy0=0, previter=params.IMAX;
 let profile = false;
 let sampleScale = 1, SCALE_MAX = 12;
 let canvas = document.getElementById("canvas");
@@ -91,14 +100,7 @@ function updateColors(){
 	});
 }
 
-let params = {
-	color1 : '#1C1D21',
-	color2 : '#31353D',
-	color3 : '#445878',
-	color4 : '#92CDCF',
-	color5 : '#EEEFF7',
-	IMAX: 200 
-}
+
 
 let gui = new dat.GUI({load:Json});
 gui.remember(params);
@@ -148,6 +150,16 @@ function frame() {
  * Renders an area of the screen.
  * Returns the area rendered.
  */
+
+
+function showZoom(){
+	ctx.fillStyle = 'black';
+	ctx.font = 'normal 10pt Courier New';
+	ctx.fillText((1/(view.scale/0.004)).toFixed(2) + "x zoom", 10,20);
+
+}
+
+
  function render(view, step, yStart=0, timeLimit=50) {
  	let ibuffer = new ArrayBuffer(canvas.width*canvas.height*4);
  	let ibuffer8 = new Uint8ClampedArray(ibuffer);
@@ -183,6 +195,7 @@ function frame() {
 
 	//upscale to canvas
 	ctx.drawImage(tempcanvas,0,0,canvas.width*step,canvas.height*step);
+	showZoom();
 
 	return y;
 }
@@ -193,10 +206,15 @@ function refresh() {
 	gfxDirty = true;
 }
 
+function norm(x,y){
+	return Math.sqrt(x*x+y*y);
+}
+
 function mandelbrot(px, py, view) {
 	let x0 = ((px - view.w/2)*view.scale-view.x),
 	y0 = ((py - view.h/2)*view.scale-view.y);
 
+	
 	let q = (x0-0.25) * (x0-0.25) + y0*y0;
 	if(q * (q + (x0-0.25)) < y0 * y0 * 0.25 || (x0+1) * (x0+1) + y0*y0 < 0.0625){
 
