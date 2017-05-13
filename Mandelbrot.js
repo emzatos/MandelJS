@@ -9,7 +9,9 @@ let params = {
 	color3 : '#445878',
 	color4 : '#92CDCF',
 	color5 : '#EEEFF7',
-	IMAX: 200 
+	IMAX: 200,
+	cRe : -0.8,
+	cIm : 0.156
 }
 
 var Json = {
@@ -103,6 +105,7 @@ function updateColors(){
 
 
 let gui = new dat.GUI({load:Json});
+
 gui.remember(params);
 gui.addColor(params, 'color1').onChange(updateColors);
 gui.addColor(params, 'color2').onChange(updateColors);
@@ -110,7 +113,10 @@ gui.addColor(params, 'color3').onChange(updateColors);
 gui.addColor(params, 'color4').onChange(updateColors);
 gui.addColor(params, 'color5').onChange(updateColors);
 gui.add(params, 'IMAX', 10, 5000).step(1).onChange(updateColors);
-
+let folder = gui.addFolder('Julia');
+folder.add(params, 'cRe', -1, 1).onChange(updateColors);
+folder.add(params, 'cIm', -1, 1).onChange(updateColors);
+folder.close();
 
 let gfxDirty = true;
 let renderYstart = 0;
@@ -152,12 +158,12 @@ function frame() {
  */
 
 
-function showZoom(){
-	ctx.fillStyle = 'black';
-	ctx.font = 'normal 10pt Courier New';
-	ctx.fillText((1/(view.scale/0.004)).toFixed(2) + "x zoom", 10,20);
+ function showZoom(){
+ 	ctx.fillStyle = 'black';
+ 	ctx.font = 'normal 10pt Courier New';
+ 	ctx.fillText((1/(view.scale/0.004)).toFixed(2) + "x zoom", 10,20);
 
-}
+ }
 
 
  function render(view, step, yStart=0, timeLimit=50) {
@@ -210,6 +216,24 @@ function norm(x,y){
 	return Math.sqrt(x*x+y*y);
 }
 
+function julia(px,py, view){
+	let x = ((px - view.w/2)*view.scale-view.x),
+	y = ((py - view.h/2)*view.scale-view.y);
+	
+	
+	
+	//let x = 0, y = 0;
+	let x2, y2;
+	var iteration = 0;
+	while (iteration < params.IMAX && (x2=x*x) + (y2=y*y) < 4) {
+		//let xtemp = x2 - y2+ x0;
+		y = 2*x*y+params.cIm;
+		x = x2-y2+params.cRe;
+		iteration++;
+	}
+	return iteration;
+}
+
 function mandelbrot(px, py, view) {
 	let x0 = ((px - view.w/2)*view.scale-view.x),
 	y0 = ((py - view.h/2)*view.scale-view.y);
@@ -232,8 +256,4 @@ function mandelbrot(px, py, view) {
 		iteration++;
 	}
 	return iteration;
-}
-
-function printRGB(color){
-	return 'rgb(' + color[0] + ',' + color[1] + ',' + color[2] + ')';
 }
