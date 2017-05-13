@@ -1,7 +1,8 @@
 //var IMAX = 200;
 const ZOOM_RATE = 1.2;
 const USE_RECTS = false;
-
+let SCALE_MAX = 12;
+let sampleScale = SCALE_MAX;
 
 var Json = {
 	"preset": "Quiet Cry",
@@ -43,7 +44,6 @@ var Json = {
 
 
 let profile = false;
-let sampleScale = 1, SCALE_MAX = 12;
 let canvas = document.getElementById("canvas");
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
@@ -77,7 +77,8 @@ let params = {
 	color3 : '#445878',
 	color4 : '#92CDCF',
 	color5 : '#EEEFF7',
-	IMAX: 200 
+	IMAX: 200,
+	multisample: 0
 }
 
 let gui = new dat.GUI({load:Json});
@@ -88,13 +89,11 @@ gui.addColor(params, 'color3').onChange(updateColors);
 gui.addColor(params, 'color4').onChange(updateColors);
 gui.addColor(params, 'color5').onChange(updateColors);
 gui.add(params, 'IMAX', 10, 1000).step(1).onChange(updateColors);
+gui.add(params, 'multisample', 0, 8).step(1).onChange(refresh);
 
 
 let gfxDirty = true;
 let renderYstart = 0;
-
-updateColors();
-frame();
 
 function frame() {
 	//skip frame if not dirty
@@ -104,7 +103,7 @@ function frame() {
 	}
 
 	//render whole screen
-	let yStop = render(view, sampleScale, renderYstart);
+	let yStop = render(view, sampleScale, renderYstart, params.multisample);
 	if (yStop >= canvas.height) {
 		renderYstart = 0;
 
@@ -128,7 +127,7 @@ function frame() {
  * Renders an area of the screen.
  * Returns the area rendered.
  */
- function render(view, step, yStart=0, timeLimit=50) {
+ function render(view, step, yStart=0, multisample=0, timeLimit=50) {
  	let ibuffer = new ArrayBuffer(canvas.width*canvas.height*4);
  	let ibuffer8 = new Uint8ClampedArray(ibuffer);
  	let ibuffer32 = new Uint32Array(ibuffer);
@@ -144,17 +143,31 @@ function frame() {
 	//compute mandelbrot
 	let t0 = Date.now();
 	let invstep = 1/step;
+	let once = false;
 
 	let x,y;
 	let w = canvas.width, h = canvas.height;
 	for (y=yStart; y<h; y=y+step) {
 		for (x=0; x<w; x=x+step) {
-			let m = mandelbrot(x,y,view);
+			let m;
+			switch (multisample) {
+				case 0:
+					m = mandelbrot(x,y,view);
+				break;
+				default:
+					m = 0;
+					for (let i=0; i<=multisample; i++)
+						m = m+mandelbrot(x+fastRand(-0.5,0.5),y+fastRand(-0.5,0.5),view);
+					m = m/(multisample+1);
+					m = ~~m;
+				break;
+			}
 			ibuffer32[y*w*invstep+x*invstep] = colormap[m];
 		}
-		if (Date.now() - t0 > timeLimit) {
+		if (once && Date.now() - t0 > timeLimit) {
 			break;
 		}
+		once = true;
 	}
 
 	//copy data back to canvas
@@ -199,3 +212,16 @@ function mandelbrot(px, py, view) {
 function printRGB(color){
 	return 'rgb(' + color[0] + ',' + color[1] + ',' + color[2] + ')';
 }
+
+fastRand = (function(){
+	const len = 373;
+	let rand = [], idx = 0;
+	for (let i=0; i<len; i++)
+		rand.push(Math.random());
+	return function(a,b) {
+		return rand[idx=(idx+1)%len] * (b-a) + a;
+	};
+})();
+
+updateColors();
+frame();
