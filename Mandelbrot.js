@@ -55,9 +55,25 @@ let ctx = canvas.getContext("2d");
 let tctx = tempcanvas.getContext("2d");
 let idata = ctx.getImageData(0,0,canvas.width,canvas.height);
 
-let view = new Rectangle(0,0,canvas.width,canvas.height);
+let view = {
+	x: 0,
+	y: 0,
+	w: canvas.width,
+	h: canvas.height,
+	scale: 0.004,
+	serialize: function() {
+		return {x: this.x, y: this.y, scale: this.scale};
+	},
+	deserialize: function(data) {
+		Object.keys(data).forEach(k => this[k] = data[k]);
+	}
+}
 view.scale = 0.004;
 
+if (document.location.hash) {
+	let parsed = JSON.parse(document.location.hash.substring(1));
+	view.deserialize(parsed);
+}
 
 let colormap;
 
@@ -184,6 +200,8 @@ function refresh() {
 	sampleScale = SCALE_MAX;
 	renderYstart = 0;
 	gfxDirty = true;
+
+	history.replaceState(undefined, undefined, "#"+JSON.stringify(view.serialize()));
 }
 
 function mandelbrot(px, py, view) {
