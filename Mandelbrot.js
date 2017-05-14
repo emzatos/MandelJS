@@ -1,18 +1,8 @@
 //var IMAX = 200;
 const ZOOM_RATE = 1.2;
 const USE_RECTS = false;
-let epsilon = 0.000001;
-
-let params = {
-	color1 : '#1C1D21',
-	color2 : '#31353D',
-	color3 : '#445878',
-	color4 : '#92CDCF',
-	color5 : '#EEEFF7',
-	IMAX: 200,
-	cRe : -0.8,
-	cIm : 0.156
-}
+let SCALE_MAX = 12;
+let sampleScale = SCALE_MAX;
 
 var Json = {
 	"preset": "Quiet Cry",
@@ -74,7 +64,6 @@ var Json = {
 
 let prevx0=0, prevy0=0, previter=params.IMAX;
 let profile = false;
-let sampleScale = 1, SCALE_MAX = 12;
 let canvas = document.getElementById("canvas");
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
@@ -86,9 +75,25 @@ let ctx = canvas.getContext("2d");
 let tctx = tempcanvas.getContext("2d");
 let idata = ctx.getImageData(0,0,canvas.width,canvas.height);
 
-let view = new Rectangle(0,0,canvas.width,canvas.height);
+let view = {
+	x: 0,
+	y: 0,
+	w: canvas.width,
+	h: canvas.height,
+	scale: 0.004,
+	serialize: function() {
+		return {x: this.x, y: this.y, scale: this.scale};
+	},
+	deserialize: function(data) {
+		Object.keys(data).forEach(k => this[k] = data[k]);
+	}
+}
 view.scale = 0.004;
 
+if (document.location.hash) {
+	let parsed = JSON.parse(document.location.hash.substring(1));
+	view.deserialize(parsed);
+}
 
 let colormap;
 
@@ -102,6 +107,15 @@ function updateColors(){
 	});
 }
 
+let params = {
+	color1 : '#1C1D21',
+	color2 : '#31353D',
+	color3 : '#445878',
+	color4 : '#92CDCF',
+	color5 : '#EEEFF7',
+	IMAX: 200,
+	multisample: 0
+}
 
 
 let gui = new dat.GUI({load:Json});
@@ -112,7 +126,8 @@ gui.addColor(params, 'color2').onChange(updateColors);
 gui.addColor(params, 'color3').onChange(updateColors);
 gui.addColor(params, 'color4').onChange(updateColors);
 gui.addColor(params, 'color5').onChange(updateColors);
-gui.add(params, 'IMAX', 10, 5000).step(1).onChange(updateColors);
+gui.add(params, 'IMAX', 10, 1000).step(1).onChange(updateColors);
+gui.add(params, 'multisample', 0, 8).step(1).onChange(refresh);
 let folder = gui.addFolder('Julia');
 folder.add(params, 'cRe', -1, 1).onChange(updateColors);
 folder.add(params, 'cIm', -1, 1).onChange(updateColors);
@@ -120,9 +135,6 @@ folder.close();
 
 let gfxDirty = true;
 let renderYstart = 0;
-
-updateColors();
-frame();
 
 function frame() {
 	//skip frame if not dirty
@@ -132,7 +144,7 @@ function frame() {
 	}
 
 	//render whole screen
-	let yStop = render(view, sampleScale, renderYstart);
+	let yStop = render(view, sampleScale, renderYstart, params.multisample);
 	if (yStop >= canvas.height) {
 		renderYstart = 0;
 
@@ -166,7 +178,7 @@ function frame() {
  }
 
 
- function render(view, step, yStart=0, timeLimit=50) {
+ function render(view, step, yStart=0, multisample=0, timeLimit=50) {
  	let ibuffer = new ArrayBuffer(canvas.width*canvas.height*4);
  	let ibuffer8 = new Uint8ClampedArray(ibuffer);
  	let ibuffer32 = new Uint32Array(ibuffer);
@@ -182,17 +194,31 @@ function frame() {
 	//compute mandelbrot
 	let t0 = Date.now();
 	let invstep = 1/step;
+	let once = false;
 
 	let x,y;
 	let w = canvas.width, h = canvas.height;
 	for (y=yStart; y<h; y=y+step) {
 		for (x=0; x<w; x=x+step) {
-			let m = mandelbrot(x,y,view);
+			let m;
+			switch (multisample) {
+				case 0:
+					m = mandelbrot(x,y,view);
+				break;
+				default:
+					m = 0;
+					for (let i=0; i<=multisample; i++)
+						m = m+mandelbrot(x+fastRand(-0.5,0.5),y+fastRand(-0.5,0.5),view);
+					m = m/(multisample+1);
+					m = ~~m;
+				break;
+			}
 			ibuffer32[y*w*invstep+x*invstep] = colormap[m];
 		}
-		if (Date.now() - t0 > timeLimit) {
+		if (once && Date.now() - t0 > timeLimit) {
 			break;
 		}
+		once = true;
 	}
 
 	//copy data back to canvas
@@ -210,6 +236,8 @@ function refresh() {
 	sampleScale = SCALE_MAX;
 	renderYstart = 0;
 	gfxDirty = true;
+
+	history.replaceState(undefined, undefined, "#"+JSON.stringify(view.serialize()));
 }
 
 function norm(x,y){
@@ -257,3 +285,20 @@ function mandelbrot(px, py, view) {
 	}
 	return iteration;
 }
+
+function printRGB(color){
+	return 'rgb(' + color[0] + ',' + color[1] + ',' + color[2] + ')';
+}
+
+fastRand = (function(){
+	const len = 373;
+	let rand = [], idx = 0;
+	for (let i=0; i<len; i++)
+		rand.push(Math.random());
+	return function(a,b) {
+		return rand[idx=(idx+1)%len] * (b-a) + a;
+	};
+})();
+
+updateColors();
+frame();
