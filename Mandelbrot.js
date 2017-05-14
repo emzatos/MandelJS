@@ -62,7 +62,7 @@ var Json = {
 	"folders": {}
 }
 
-let prevx0=0, prevy0=0, previter=params.IMAX;
+
 let profile = false;
 let canvas = document.getElementById("canvas");
 canvas.width = window.innerWidth;
@@ -114,7 +114,9 @@ let params = {
 	color4 : '#92CDCF',
 	color5 : '#EEEFF7',
 	IMAX: 200,
-	multisample: 0
+	multisample: 0,
+	cRe: -0.8,
+	cIm: 0.166
 }
 
 
@@ -128,6 +130,7 @@ gui.addColor(params, 'color4').onChange(updateColors);
 gui.addColor(params, 'color5').onChange(updateColors);
 gui.add(params, 'IMAX', 10, 1000).step(1).onChange(updateColors);
 gui.add(params, 'multisample', 0, 8).step(1).onChange(refresh);
+
 let folder = gui.addFolder('Julia');
 folder.add(params, 'cRe', -1, 1).onChange(updateColors);
 folder.add(params, 'cIm', -1, 1).onChange(updateColors);
