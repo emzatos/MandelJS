@@ -33,11 +33,11 @@ function checkRect(rect){
 		console.log("ficK");
 		return -1;
 	}
-	if(values.every(x => x >= IMAX)){
+	if(values.every(x => x >= params.IMAX)){
 		return 1;
 	}
 
-	if(values.every(x=> x < IMAX))
+	if(values.every(x=> x < params.IMAX))
 		return 2;
 
 	else{

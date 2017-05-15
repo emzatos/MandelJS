@@ -11,6 +11,7 @@ let colormap;
 let view;
 let gfxDirty = true;
 let renderYstart = 0;
+let ibuffer, ibuffer8, ibuffer32;
 
 let params = {
 	color1 : '#1C1D21',
@@ -91,6 +92,11 @@ function init() {
 	ctx = canvas.getContext("2d");
 	tctx = tempcanvas.getContext("2d");
 	idata = ctx.getImageData(0,0,canvas.width,canvas.height);
+
+	//prepare buffers
+	ibuffer = new ArrayBuffer(canvas.width*canvas.height*4);
+	ibuffer8 = new Uint8ClampedArray(ibuffer);
+	ibuffer32 = new Uint32Array(ibuffer);
 
 	//setup view
 	view = {
@@ -190,9 +196,7 @@ function updateDebug(){
  * Returns the area rendered.
  */
  function render(view, step, yStart=0, multisample=0, timeLimit=100) {
- 	let ibuffer = new ArrayBuffer(canvas.width*canvas.height*4);
- 	let ibuffer8 = new Uint8ClampedArray(ibuffer);
- 	let ibuffer32 = new Uint32Array(ibuffer);
+ 	ibuffer32.fill(0);
 
 	//rectangle "optimization"
 	if (USE_RECTS) {
@@ -276,10 +280,8 @@ function mandelbrot(px, py, view) {
 
 	
 	let q = (x0-0.25) * (x0-0.25) + y0*y0;
-	if(q * (q + (x0-0.25)) < y0 * y0 * 0.25 || (x0+1) * (x0+1) + y0*y0 < 0.0625){
-
+	if (q * (q + (x0-0.25)) < y0 * y0 * 0.25 || (x0+1) * (x0+1) + y0*y0 < 0.0625) {
 		return params.IMAX;
-
 	}
 
 	let x = 0, y = 0;
