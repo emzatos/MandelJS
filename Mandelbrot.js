@@ -34,7 +34,6 @@ var Json = {
 				color3 : '#445878',
 				color4 : '#92CDCF',
 				color5 : '#EEEFF7',
-
 			}
 		},
 		"Blue Sky": {
@@ -44,17 +43,15 @@ var Json = {
 				color3 : '#4E7AC7',
 				color4 : '#7FB2F0',
 				color5 : '#ADD5F7',
-
 			}
 		},
 		"Sunset Camping": {
 			"0": {
-				color1 : '#2D112C',
-				color2 : '#530031',
-				color3 : '#820233',
-				color4 : '#CA293E',
-				color5 : '#EF4339',
-
+		        color1: "#2d112d",
+		        color2: "#530035",
+		        color3: "#822701",
+		        color4: "#cfa964",
+		        color5: "#ffffd4",
 			}
 		},
 		"Mandel": {
@@ -64,7 +61,6 @@ var Json = {
 				color3 : 'orange',
 				color4 : 'red',
 				color5 : 'black',
-
 			}
 		},
 		"Mandel Invert": {
@@ -74,7 +70,6 @@ var Json = {
 				color3 : 'orange',
 				color4 : 'white',
 				color5 : 'navy',
-
 			}
 		}
 	},
