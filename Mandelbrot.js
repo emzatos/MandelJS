@@ -1,8 +1,28 @@
 //var IMAX = 200;
 const ZOOM_RATE = 1.2;
 const USE_RECTS = false;
+let profile = false;
 let SCALE_MAX = 12;
 let sampleScale = SCALE_MAX;
+let frameTime = {scale: 1, time: 0, t0: Date.now()};
+let canvas, tempcanvas;
+let ctx, tctx, idata;
+let colormap;
+let view;
+let gfxDirty = true;
+let renderYstart = 0;
+
+let params = {
+	color1 : '#1C1D21',
+	color2 : '#31353D',
+	color3 : '#445878',
+	color4 : '#92CDCF',
+	color5 : '#EEEFF7',
+	IMAX: 200,
+	multisample: 0,
+	cRe: -0.8,
+	cIm: 0.166
+}
 
 var Json = {
 	"preset": "Quiet Cry",
@@ -62,43 +82,64 @@ var Json = {
 	"folders": {}
 }
 
+function init() {
+	//get DOM elements
+	debugText = document.getElementById("debugText");
+	canvas = document.getElementById("canvas");
+	canvas.width = window.innerWidth;
+	canvas.height = window.innerHeight;
+	tempcanvas = document.createElement("canvas");
+	tempcanvas.width = canvas.width;
+	tempcanvas.height = canvas.height;
 
-let profile = false;
-let canvas = document.getElementById("canvas");
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
-let tempcanvas = document.createElement("canvas");
-tempcanvas.width = canvas.width;
-tempcanvas.height = canvas.height;
+	//prepare canvases
+	ctx = canvas.getContext("2d");
+	tctx = tempcanvas.getContext("2d");
+	idata = ctx.getImageData(0,0,canvas.width,canvas.height);
 
-let ctx = canvas.getContext("2d");
-let tctx = tempcanvas.getContext("2d");
-let idata = ctx.getImageData(0,0,canvas.width,canvas.height);
-
-let view = {
-	x: 0,
-	y: 0,
-	w: canvas.width,
-	h: canvas.height,
-	scale: 0.004,
-	serialize: function() {
-		return {x: this.x, y: this.y, scale: this.scale};
-	},
-	deserialize: function(data) {
-		Object.keys(data).forEach(k => this[k] = data[k]);
+	//setup view
+	view = {
+		x: 0,
+		y: 0,
+		w: canvas.width,
+		h: canvas.height,
+		scale: 0.004,
+		serialize: function() {
+			return {x: this.x, y: this.y, scale: this.scale};
+		},
+		deserialize: function(data) {
+			Object.keys(data).forEach(k => this[k] = data[k]);
+		}
 	}
-}
-view.scale = 0.004;
 
-if (document.location.hash) {
-	let parsed = JSON.parse(document.location.hash.substring(1));
-	view.deserialize(parsed);
-}
+	//parse view data contained in hash, if any
+	if (document.location.hash) {
+		let parsed = JSON.parse(document.location.hash.substring(1));
+		view.deserialize(parsed);
+	}
 
-let colormap;
+	//prepare GUI
+	gui = new dat.GUI({load:Json});
+	gui.remember(params);
+	gui.addColor(params, 'color1').onChange(updateColors);
+	gui.addColor(params, 'color2').onChange(updateColors);
+	gui.addColor(params, 'color3').onChange(updateColors);
+	gui.addColor(params, 'color4').onChange(updateColors);
+	gui.addColor(params, 'color5').onChange(updateColors);
+	gui.add(params, 'IMAX', 10, 1000).step(1).onChange(updateColors);
+	gui.add(params, 'multisample', 0, 8).step(1).onChange(refresh);
+
+	let folder = gui.addFolder('Julia');
+	folder.add(params, 'cRe', -1, 1).onChange(updateColors);
+	folder.add(params, 'cIm', -1, 1).onChange(updateColors);
+	folder.close();
+
+	//start
+	updateColors();
+	frame();
+}
 
 function updateColors(){
-
 	colormap = chroma.scale([params.color1, params.color2, params.color3, params.color4, params.color5].reverse())
 	.domain([0,params.IMAX/4,params.IMAX/2, 3*params.IMAX/4, params.IMAX])
 	.colors(params.IMAX+1).map(col => {
@@ -106,38 +147,6 @@ function updateColors(){
 		return (255 << 24) | (rgb[2] << 16) | (rgb[1] << 8) | (rgb[0]);
 	});
 }
-
-let params = {
-	color1 : '#1C1D21',
-	color2 : '#31353D',
-	color3 : '#445878',
-	color4 : '#92CDCF',
-	color5 : '#EEEFF7',
-	IMAX: 200,
-	multisample: 0,
-	cRe: -0.8,
-	cIm: 0.166
-}
-
-
-let gui = new dat.GUI({load:Json});
-
-gui.remember(params);
-gui.addColor(params, 'color1').onChange(updateColors);
-gui.addColor(params, 'color2').onChange(updateColors);
-gui.addColor(params, 'color3').onChange(updateColors);
-gui.addColor(params, 'color4').onChange(updateColors);
-gui.addColor(params, 'color5').onChange(updateColors);
-gui.add(params, 'IMAX', 10, 1000).step(1).onChange(updateColors);
-gui.add(params, 'multisample', 0, 8).step(1).onChange(refresh);
-
-let folder = gui.addFolder('Julia');
-folder.add(params, 'cRe', -1, 1).onChange(updateColors);
-folder.add(params, 'cIm', -1, 1).onChange(updateColors);
-folder.close();
-
-let gfxDirty = true;
-let renderYstart = 0;
 
 function frame() {
 	//skip frame if not dirty
@@ -148,8 +157,14 @@ function frame() {
 
 	//render whole screen
 	let yStop = render(view, sampleScale, renderYstart, params.multisample);
-	if (yStop >= canvas.height) {
+
+	//update sample scale
+	if (yStop >= canvas.height) { //finished the screen
 		renderYstart = 0;
+
+		frameTime.scale = sampleScale;
+		frameTime.time = (Date.now() - frameTime.t0)/1000;
+		frameTime.t0 = Date.now();
 
 		//progressively increase sample resolution
 		if (sampleScale>1) {
@@ -163,25 +178,23 @@ function frame() {
 	else {
 		renderYstart = yStop;
 	}
-	
+
+	updateDebug();
 	requestAnimationFrame(frame);
+}
+
+function updateDebug(){
+ 	debugText.innerHTML = [
+ 		`10^${Math.log10((1/(view.scale/0.004))).toFixed(1)}x zoom`,
+ 		`${frameTime.scale}X: ${frameTime.time.toFixed(2)}s`
+ 	].join("<br>");
 }
 
 /**
  * Renders an area of the screen.
  * Returns the area rendered.
  */
-
-
- function showZoom(){
- 	ctx.fillStyle = 'black';
- 	ctx.font = 'normal 10pt Courier New';
- 	ctx.fillText((1/(view.scale/0.004)).toFixed(2) + "x zoom", 10,20);
-
- }
-
-
- function render(view, step, yStart=0, multisample=0, timeLimit=50) {
+ function render(view, step, yStart=0, multisample=0, timeLimit=100) {
  	let ibuffer = new ArrayBuffer(canvas.width*canvas.height*4);
  	let ibuffer8 = new Uint8ClampedArray(ibuffer);
  	let ibuffer32 = new Uint32Array(ibuffer);
@@ -230,7 +243,6 @@ function frame() {
 
 	//upscale to canvas
 	ctx.drawImage(tempcanvas,0,0,canvas.width*step,canvas.height*step);
-	showZoom();
 
 	return y;
 }
@@ -250,8 +262,6 @@ function norm(x,y){
 function julia(px,py, view){
 	let x = ((px - view.w/2)*view.scale-view.x),
 	y = ((py - view.h/2)*view.scale-view.y);
-	
-	
 	
 	//let x = 0, y = 0;
 	let x2, y2;
@@ -303,5 +313,4 @@ fastRand = (function(){
 	};
 })();
 
-updateColors();
-frame();
+init();

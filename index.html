@@ -1,24 +1,38 @@
 <!DOCTYPE html>
 <html>
- <head>
-  <meta charset="utf-8"/>
-  <script type="application/javascript" src="Rectangle.js" defer></script>
-  <script type="application/javascript" src="Input.js" defer></script>
-  <script type="application/javascript" src="Mandelbrot.js" defer></script>
-  <script type="text/javascript" src="dat.gui.min.js"></script>
-  <script type="text/javascript" src="chroma.min.js"></script>
-  <style type="text/css">
-  	#canvas {
-  		position: absolute;
-  		left: 0;
-  		top: 0;
-  	}
-    .dg {
-      user-select: none;
-    }
-  </style>
- </head>
- <body>
-   <canvas id="canvas"></canvas>
- </body>
+<head>
+	<meta charset="utf-8"/>
+	<script type="application/javascript" src="Rectangle.js" defer></script>
+	<script type="application/javascript" src="Input.js" defer></script>
+	<script type="application/javascript" src="Mandelbrot.js" defer></script>
+	<script type="text/javascript" src="dat.gui.min.js"></script>
+	<script type="text/javascript" src="chroma.min.js"></script>
+	<style type="text/css">
+		html {
+			cursor: default !important; /*:)*/
+		}
+		#canvas {
+			position: absolute;
+			left: 0;
+			top: 0;
+		}
+		.dg {
+			user-select: none;
+		}
+		#debugText {
+			position: absolute;
+			top: 1em;
+			left: 1em;
+			font-family: monospace;
+			font-size: 10pt;
+			pointer-events: none;
+			background: rgba(255,255,255,0.25);
+			padding: 0.5em;
+		}
+	</style>
+</head>
+<body>
+	<canvas id="canvas"></canvas>
+	<span id="debugText"></span>
+</body>
 </html>
