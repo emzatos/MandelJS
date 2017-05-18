@@ -12,6 +12,7 @@ let view;
 let gfxDirty = true;
 let renderYstart = 0;
 let ibuffer, ibuffer8, ibuffer32;
+let workerPool;
 
 let params = {
 	color1 : '#1C1D21',
@@ -19,7 +20,6 @@ let params = {
 	color3 : '#445878',
 	color4 : '#92CDCF',
 	color5 : '#EEEFF7',
-	IMAX: 200,
 	multisample: 0,
 	cRe: -0.8,
 	cIm: 0.166
@@ -105,11 +105,16 @@ function init() {
 		w: canvas.width,
 		h: canvas.height,
 		scale: 0.004,
+		sampleScale: 1,
+		IMAX: 200,
 		serialize: function() {
-			return {x: this.x, y: this.y, scale: this.scale};
+			return {x: this.x, y: this.y, scale: this.scale, IMAX: this.IMAX};
 		},
 		deserialize: function(data) {
 			Object.keys(data).forEach(k => this[k] = data[k]);
+		},
+		raw: function() {
+			return {x: this.x, y: this.y, scale: this.scale, IMAX: this.IMAX, w: this.w, h: this.h};
 		}
 	}
 
@@ -127,13 +132,29 @@ function init() {
 	gui.addColor(params, 'color3').onChange(updateColors);
 	gui.addColor(params, 'color4').onChange(updateColors);
 	gui.addColor(params, 'color5').onChange(updateColors);
-	gui.add(params, 'IMAX', 10, 1000).step(1).onChange(updateColors);
+	gui.add(view, 'IMAX', 10, 1000).step(1).onChange(updateColors);
 	gui.add(params, 'multisample', 0, 8).step(1).onChange(refresh);
 
 	let folder = gui.addFolder('Julia');
 	folder.add(params, 'cRe', -1, 1).onChange(updateColors);
 	folder.add(params, 'cIm', -1, 1).onChange(updateColors);
 	folder.close();
+
+	//prepare workers
+	const N_WORKERS = 16;
+	workerPool = [];
+	for (let i=0; i<N_WORKERS; i++) {
+		let worker = new Worker("MandelWorker.js");
+		let y0 = Math.floor(i/N_WORKERS*view.h);
+		let y1 = Math.ceil((i+1)/N_WORKERS*view.h);
+		let buffer = new Float64Array((y1-y0)*view.w);
+		workerPool.push({
+			worker: worker,
+			y0: y0,
+			y1: y1,
+			buffer: buffer
+		});
+	}
 
 	//start
 	updateColors();
@@ -142,8 +163,8 @@ function init() {
 
 function updateColors(){
 	colormap = chroma.scale([params.color1, params.color2, params.color3, params.color4, params.color5].reverse())
-	.domain([0,params.IMAX/4,params.IMAX/2, 3*params.IMAX/4, params.IMAX])
-	.colors(params.IMAX+1).map(col => {
+	.domain([0,view.IMAX/4,view.IMAX/2, 3*view.IMAX/4, view.IMAX])
+	.colors(view.IMAX+1).map(col => {
 		let rgb = chroma(col).rgb();
 		return (255 << 24) | (rgb[2] << 16) | (rgb[1] << 8) | (rgb[0]);
 	});
@@ -157,12 +178,7 @@ function frame() {
 	}
 
 	//render whole screen
-	let yStop = render(view, sampleScale, renderYstart, params.multisample);
-
-	//update sample scale
-	if (yStop >= canvas.height) { //finished the screen
-		renderYstart = 0;
-
+	renderParallel(view, sampleScale, params.multisample, function(){
 		frameTime.scale = sampleScale;
 		frameTime.time = (Date.now() - frameTime.t0)/1000;
 		frameTime.t0 = Date.now();
@@ -175,13 +191,10 @@ function frame() {
 		else {
 			gfxDirty = false;
 		}
-	}
-	else {
-		renderYstart = yStop;
-	}
 
-	updateDebug();
-	requestAnimationFrame(frame);
+		updateDebug();
+		requestAnimationFrame(frame);
+	});
 }
 
 function updateDebug(){
@@ -189,6 +202,51 @@ function updateDebug(){
  		`10^${Math.log10((1/(view.scale/0.004))).toFixed(1)}x zoom`,
  		`${frameTime.scale}X: ${frameTime.time.toFixed(2)}s`
  	].join("<br>");
+}
+
+function renderParallel(view, step, multisample=0, callback) {
+	ibuffer32.fill(0);
+	let invstep = 1/step;
+
+	let lock = 0;
+	for (let i=workerPool.length-1; i>=0; i--) {
+		let data = workerPool[i];
+		lock++;
+
+		// data.worker.terminate();
+		data.worker.onmessage = function(event) {
+			lock--;
+			let buffer = event.data.buffer;
+			let w = view.w, h = view.h;
+			data.buffer = buffer;
+
+			let i=0;
+			for (let y=data.y0; y<data.y1; y=y+step) {
+				for (let x=0; x<w; x=x+step) {
+					let idx = y*w*invstep+x*invstep;
+					ibuffer32[idx] = colormap[buffer[i]];
+					i=i+step;
+				}
+			}
+
+			if (lock === 0) {
+				//copy data back to canvas
+				idata.data.set(ibuffer8);
+				tctx.putImageData(idata,0,0);
+
+				//upscale to canvas
+				ctx.drawImage(tempcanvas,0,0,canvas.width*step,canvas.height*step);
+				callback();
+			}
+		};
+		data.worker.postMessage({
+			buffer: data.buffer,
+			view: view.raw(),
+			step: step,
+			y0: data.y0,
+			y1: data.y1
+		}, [data.buffer.buffer]);
+	}
 }
 
 /**
@@ -250,8 +308,6 @@ function refresh() {
 	sampleScale = SCALE_MAX;
 	renderYstart = 0;
 	gfxDirty = true;
-
-	history.replaceState(undefined, undefined, "#"+JSON.stringify(view.serialize()));
 }
 
 function norm(x,y){
@@ -265,7 +321,7 @@ function julia(px,py, view){
 	//let x = 0, y = 0;
 	let x2, y2;
 	var iteration = 0;
-	while (iteration < params.IMAX && (x2=x*x) + (y2=y*y) < 4) {
+	while (iteration < view.IMAX && (x2=x*x) + (y2=y*y) < 4) {
 		//let xtemp = x2 - y2+ x0;
 		y = 2*x*y+params.cIm;
 		x = x2-y2+params.cRe;
@@ -281,16 +337,15 @@ function mandelbrot(px, py, view) {
 	
 	let q = (x0-0.25) * (x0-0.25) + y0*y0;
 	if (q * (q + (x0-0.25)) < y0 * y0 * 0.25 || (x0+1) * (x0+1) + y0*y0 < 0.0625) {
-		return params.IMAX;
+		return view.IMAX;
 	}
 
 	let x = 0, y = 0;
 	let x2, y2;
 	var iteration = 0;
-	while (iteration < params.IMAX && (x2=x*x) + (y2=y*y) < 4) {
-		let xtemp = x2 - y2 + x0;
+	while (iteration < view.IMAX && (x2=x*x) + (y2=y*y) < 4) {
 		y = 2*x*y + y0;
-		x = xtemp;
+		x = x2 - y2 + x0;
 		iteration++;
 	}
 	return iteration;
