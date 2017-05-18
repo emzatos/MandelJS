@@ -7,12 +7,11 @@ self.onmessage = function(event) {
 	let y1 = event.data.y1;
 	let invstep = 1/step;
 
-	let i=0;
 	for (let y=y0; y<=y1; y=y+step) {
 		for (let x=0; x<w; x=x+step) {
 			let m = mandelbrot(x,y,view);
-			buffer[i] = m;
-			i = i+step;
+			let didx = (y-y0)*w+x;
+			buffer[didx] = m;
 		}
 	}
 	self.postMessage({buffer: buffer}, [buffer.buffer]);

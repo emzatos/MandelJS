@@ -2,7 +2,7 @@
 const ZOOM_RATE = 1.2;
 const USE_RECTS = false;
 let profile = false;
-let SCALE_MAX = 12;
+let SCALE_MAX = 8;
 let sampleScale = SCALE_MAX;
 let frameTime = {scale: 1, time: 0, t0: Date.now()};
 let canvas, tempcanvas;
@@ -207,6 +207,7 @@ function updateDebug(){
 function renderParallel(view, step, multisample=0, callback) {
 	ibuffer32.fill(0);
 	let invstep = 1/step;
+	let s = step;
 
 	let lock = 0;
 	for (let i=workerPool.length-1; i>=0; i--) {
@@ -220,12 +221,11 @@ function renderParallel(view, step, multisample=0, callback) {
 			let w = view.w, h = view.h;
 			data.buffer = buffer;
 
-			let i=0;
 			for (let y=data.y0; y<data.y1; y=y+step) {
 				for (let x=0; x<w; x=x+step) {
-					let idx = y*w*invstep+x*invstep;
-					ibuffer32[idx] = colormap[buffer[i]];
-					i=i+step;
+					let didx = y*w+x;
+					let sidx = (y-data.y0)*w+x;
+					ibuffer32[didx] = colormap[buffer[sidx]];
 				}
 			}
 
@@ -235,14 +235,14 @@ function renderParallel(view, step, multisample=0, callback) {
 				tctx.putImageData(idata,0,0);
 
 				//upscale to canvas
-				ctx.drawImage(tempcanvas,0,0,canvas.width*step,canvas.height*step);
+				ctx.drawImage(tempcanvas,0,0,canvas.width,canvas.height);
 				callback();
 			}
 		};
 		data.worker.postMessage({
 			buffer: data.buffer,
 			view: view.raw(),
-			step: step,
+			step: s,
 			y0: data.y0,
 			y1: data.y1
 		}, [data.buffer.buffer]);
