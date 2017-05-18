@@ -22,7 +22,8 @@ let params = {
 	IMAX: 200,
 	multisample: 0,
 	cRe: -0.8,
-	cIm: 0.166
+	cIm: 0.166,
+	julia_flag: false
 }
 
 var Json = {
@@ -118,15 +119,22 @@ function init() {
 		}
 	}, "Share view");
 	gui.add({"Reset view": resetView}, "Reset view");
-	gui.addColor(params, 'color1').onChange(updateColors);
-	gui.addColor(params, 'color2').onChange(updateColors);
-	gui.addColor(params, 'color3').onChange(updateColors);
-	gui.addColor(params, 'color4').onChange(updateColors);
-	gui.addColor(params, 'color5').onChange(updateColors);
-	gui.add(params, 'IMAX', 10, 1000).step(1).onChange(updateColors);
-	gui.add(params, 'multisample', 0, 8).step(1).onChange(refresh);
+	let color_folder = gui.addFolder('Colors');
+
+	color_folder.addColor(params, 'color1').onChange(updateColors);
+	color_folder.addColor(params, 'color2').onChange(updateColors);
+	color_folder.addColor(params, 'color3').onChange(updateColors);
+	color_folder.addColor(params, 'color4').onChange(updateColors);
+	color_folder.addColor(params, 'color5').onChange(updateColors);
+
+	let render_folder = gui.addFolder('Render');
+
+	render_folder.add(params, 'IMAX', 10, 1000).step(1).onChange(updateColors);
+	render_folder.add(params, 'multisample', 0, 8).step(1).onChange(refresh);
+
 
 	let folder = gui.addFolder('Julia');
+	folder.add(params, 'julia_flag');
 	folder.add(params, 'cRe', -1, 1).onChange(updateColors);
 	folder.add(params, 'cIm', -1, 1).onChange(updateColors);
 	folder.close();
@@ -231,12 +239,12 @@ function updateDebug(){
 			let m;
 			switch (multisample) {
 				case 0:
-					m = mandelbrot(x,y,view);
+					m = params.julia_flag? julia(x,y,view) : mandelbrot(x,y,view);
 				break;
 				default:
 					m = 0;
 					for (let i=0; i<=multisample; i++)
-						m = m+mandelbrot(x+fastRand(-0.5,0.5),y+fastRand(-0.5,0.5),view);
+						m = params.julia_flag? m+julia(x+fastRand(-0.5,0.5),y+fastRand(-0.5,0.5),view) : m+mandelbrot(x+fastRand(-0.5,0.5),y+fastRand(-0.5,0.5),view);
 					m = m/(multisample+1);
 					m = ~~m;
 				break;
