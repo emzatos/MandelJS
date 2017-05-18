@@ -98,20 +98,7 @@ function init() {
 	ibuffer8 = new Uint8ClampedArray(ibuffer);
 	ibuffer32 = new Uint32Array(ibuffer);
 
-	//setup view
-	view = {
-		x: 0,
-		y: 0,
-		w: canvas.width,
-		h: canvas.height,
-		scale: 0.004,
-		serialize: function() {
-			return {x: this.x, y: this.y, scale: this.scale};
-		},
-		deserialize: function(data) {
-			Object.keys(data).forEach(k => this[k] = data[k]);
-		}
-	}
+	resetView();
 
 	//parse view data contained in hash, if any
 	if (document.location.hash) {
@@ -122,6 +109,15 @@ function init() {
 	//prepare GUI
 	gui = new dat.GUI({load:Json});
 	gui.remember(params);
+	gui.add({
+		"Share view": function() {
+			prompt(
+				"Copy the link to share:", 
+				document.location.origin + document.location.pathname + "#" +JSON.stringify(view.serialize())
+			);
+		}
+	}, "Share view");
+	gui.add({"Reset view": resetView}, "Reset view");
 	gui.addColor(params, 'color1').onChange(updateColors);
 	gui.addColor(params, 'color2').onChange(updateColors);
 	gui.addColor(params, 'color3').onChange(updateColors);
@@ -138,6 +134,23 @@ function init() {
 	//start
 	updateColors();
 	frame();
+}
+
+function resetView() {
+	//setup view
+	view = {
+		x: 0,
+		y: 0,
+		w: canvas.width,
+		h: canvas.height,
+		scale: 0.004,
+		serialize: function() {
+			return {x: this.x, y: this.y, scale: this.scale};
+		},
+		deserialize: function(data) {
+			Object.keys(data).forEach(k => this[k] = data[k]);
+		}
+	};
 }
 
 function updateColors(){
@@ -250,8 +263,6 @@ function refresh() {
 	sampleScale = SCALE_MAX;
 	renderYstart = 0;
 	gfxDirty = true;
-
-	history.replaceState(undefined, undefined, "#"+JSON.stringify(view.serialize()));
 }
 
 function norm(x,y){
