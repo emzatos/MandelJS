@@ -207,7 +207,6 @@ function updateDebug(){
 function renderParallel(view, step, multisample=0, callback) {
 	ibuffer32.fill(0);
 	let invstep = 1/step;
-	let s = step;
 
 	let lock = 0;
 	for (let i=workerPool.length-1; i>=0; i--) {
@@ -221,12 +220,15 @@ function renderParallel(view, step, multisample=0, callback) {
 			let w = view.w, h = view.h;
 			data.buffer = buffer;
 
+			//tood: rewrite for clarity
+			let didx = data.y0*invstep*w - data.y0/(data.y1-data.y0)*w*invstep;
 			for (let y=data.y0; y<data.y1; y=y+step) {
 				for (let x=0; x<w; x=x+step) {
-					let didx = y*w+x;
 					let sidx = (y-data.y0)*w+x;
 					ibuffer32[didx] = colormap[buffer[sidx]];
+					didx = didx+1;
 				}
+				didx = didx+w-w*invstep;
 			}
 
 			if (lock === 0) {
@@ -235,14 +237,14 @@ function renderParallel(view, step, multisample=0, callback) {
 				tctx.putImageData(idata,0,0);
 
 				//upscale to canvas
-				ctx.drawImage(tempcanvas,0,0,canvas.width,canvas.height);
+				ctx.drawImage(tempcanvas,0,0,canvas.width*step,canvas.height*step);
 				callback();
 			}
 		};
 		data.worker.postMessage({
 			buffer: data.buffer,
 			view: view.raw(),
-			step: s,
+			step: step,
 			y0: data.y0,
 			y1: data.y1
 		}, [data.buffer.buffer]);
