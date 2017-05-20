@@ -246,64 +246,10 @@ function renderParallel(view, step, multisample=0, callback) {
 			view: view.raw(),
 			step: s,
 			y0: data.y0,
-			y1: data.y1
+			y1: data.y1,
+			multisample: multisample
 		}, [data.buffer.buffer]);
 	}
-}
-
-/**
- * Renders an area of the screen.
- * Returns the area rendered.
- */
- function render(view, step, yStart=0, multisample=0, timeLimit=100) {
- 	ibuffer32.fill(0);
-
-	//rectangle "optimization"
-	if (USE_RECTS) {
-		fillRects(new Rectangle(0,0,canvas.width/2, canvas.height));
-		fillRects(new Rectangle(canvas.width/2, 0, canvas.width/2, canvas.height));
-		requestAnimationFrame(render);
-		return;
-	}
-
-	//compute mandelbrot
-	let t0 = Date.now();
-	let invstep = 1/step;
-	let once = false;
-
-	let x,y;
-	let w = canvas.width, h = canvas.height;
-	for (y=yStart; y<h; y=y+step) {
-		for (x=0; x<w; x=x+step) {
-			let m;
-			switch (multisample) {
-				case 0:
-					m = mandelbrot(x,y,view);
-				break;
-				default:
-					m = 0;
-					for (let i=0; i<=multisample; i++)
-						m = m+mandelbrot(x+fastRand(-0.5,0.5),y+fastRand(-0.5,0.5),view);
-					m = m/(multisample+1);
-					m = ~~m;
-				break;
-			}
-			ibuffer32[y*w*invstep+x*invstep] = colormap[m];
-		}
-		if (once && Date.now() - t0 > timeLimit) {
-			break;
-		}
-		once = true;
-	}
-
-	//copy data back to canvas
-	idata.data.set(ibuffer8);
-	tctx.putImageData(idata,0,0);
-
-	//upscale to canvas
-	ctx.drawImage(tempcanvas,0,0,canvas.width*step,canvas.height*step);
-
-	return y;
 }
 
 function refresh() {
@@ -312,59 +258,8 @@ function refresh() {
 	gfxDirty = true;
 }
 
-function norm(x,y){
-	return Math.sqrt(x*x+y*y);
-}
-
-function julia(px,py, view){
-	let x = ((px - view.w/2)*view.scale-view.x),
-	y = ((py - view.h/2)*view.scale-view.y);
-	
-	//let x = 0, y = 0;
-	let x2, y2;
-	var iteration = 0;
-	while (iteration < view.IMAX && (x2=x*x) + (y2=y*y) < 4) {
-		//let xtemp = x2 - y2+ x0;
-		y = 2*x*y+params.cIm;
-		x = x2-y2+params.cRe;
-		iteration++;
-	}
-	return iteration;
-}
-
-function mandelbrot(px, py, view) {
-	let x0 = ((px - view.w/2)*view.scale-view.x),
-	y0 = ((py - view.h/2)*view.scale-view.y);
-
-	
-	let q = (x0-0.25) * (x0-0.25) + y0*y0;
-	if (q * (q + (x0-0.25)) < y0 * y0 * 0.25 || (x0+1) * (x0+1) + y0*y0 < 0.0625) {
-		return view.IMAX;
-	}
-
-	let x = 0, y = 0;
-	let x2, y2;
-	var iteration = 0;
-	while (iteration < view.IMAX && (x2=x*x) + (y2=y*y) < 4) {
-		y = 2*x*y + y0;
-		x = x2 - y2 + x0;
-		iteration++;
-	}
-	return iteration;
-}
-
 function printRGB(color){
 	return 'rgb(' + color[0] + ',' + color[1] + ',' + color[2] + ')';
 }
-
-fastRand = (function(){
-	const len = 373;
-	let rand = [], idx = 0;
-	for (let i=0; i<len; i++)
-		rand.push(Math.random());
-	return function(a,b) {
-		return rand[idx=(idx+1)%len] * (b-a) + a;
-	};
-})();
 
 init();
