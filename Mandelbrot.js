@@ -221,11 +221,13 @@ function renderParallel(view, step, multisample=0, callback) {
 			let w = view.w, h = view.h;
 			data.buffer = buffer;
 
-			for (let y=data.y0; y<data.y1; y=y+step) {
-				for (let x=0; x<w; x=x+step) {
-					let didx = y*w+x;
-					let sidx = (y-data.y0)*w+x;
-					ibuffer32[didx] = colormap[buffer[sidx]];
+			let offset = Math.floor(data.y0/step)*w;
+			let rows = Math.ceil((data.y1-data.y0)/step);
+			for (let row=0; row<rows; row=row+1) {
+				for (let col=0; col<w/step; col=col+1) {
+					let iSrc = row*step*w+col*step;
+					let iDst = offset+row*w+col;
+					ibuffer32[iDst] = colormap[buffer[iSrc]];
 				}
 			}
 
@@ -235,7 +237,7 @@ function renderParallel(view, step, multisample=0, callback) {
 				tctx.putImageData(idata,0,0);
 
 				//upscale to canvas
-				ctx.drawImage(tempcanvas,0,0,canvas.width,canvas.height);
+				ctx.drawImage(tempcanvas,0,0,canvas.width*step,canvas.height*step);
 				callback();
 			}
 		};
