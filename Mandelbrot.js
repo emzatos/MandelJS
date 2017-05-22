@@ -101,28 +101,6 @@ function init() {
 	ibuffer32 = new Uint32Array(ibuffer);
 
 	resetView();
-	//setup view
-	view = {
-		x: 0,
-		y: 0,
-		w: canvas.width,
-		h: canvas.height,
-		scale: 0.004,
-		sampleScale: 1,
-		cRe: params.cRe,
-		cIm: params.cIm,
-		julia_flag: params.julia_flag,
-		IMAX: params.IMAX,
-		serialize: function() {
-			return {x: this.x, y: this.y, scale: this.scale, IMAX: this.IMAX};
-		},
-		deserialize: function(data) {
-			Object.keys(data).forEach(k => this[k] = data[k]);
-		},
-		raw: function() {
-			return {x: this.x, y: this.y, scale: this.scale, IMAX: this.IMAX, w: this.w, h: this.h, julia_flag: this.julia_flag, cIm: this.cIm, cRe: this.cRe};
-		}
-	}
 
 	//parse view data contained in hash, if any
 	if (document.location.hash) {
@@ -193,11 +171,19 @@ function resetView() {
 		w: canvas.width,
 		h: canvas.height,
 		scale: 0.004,
+		sampleScale: 1,
+		cRe: params.cRe,
+		cIm: params.cIm,
+		julia_flag: params.julia_flag,
+		IMAX: params.IMAX,
 		serialize: function() {
-			return {x: this.x, y: this.y, scale: this.scale};
+			return {x: this.x, y: this.y, scale: this.scale, IMAX: this.IMAX, julia_flag: this.julia_flag};
 		},
 		deserialize: function(data) {
 			Object.keys(data).forEach(k => this[k] = data[k]);
+		},
+		raw: function() {
+			return {x: this.x, y: this.y, scale: this.scale, IMAX: this.IMAX, w: this.w, h: this.h, julia_flag: this.julia_flag, cIm: this.cIm, cRe: this.cRe};
 		}
 	};
 }
