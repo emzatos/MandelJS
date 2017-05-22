@@ -132,7 +132,7 @@ function init() {
 	gui.addColor(params, 'color3').onChange(updateColors);
 	gui.addColor(params, 'color4').onChange(updateColors);
 	gui.addColor(params, 'color5').onChange(updateColors);
-	gui.add(view, 'IMAX', 10, 1000).step(1).onChange(updateColors);
+	gui.add(view, 'IMAX', 10, 2000).step(1).onChange(updateColors);
 	gui.add(params, 'multisample', 0, 8).step(1).onChange(refresh);
 
 	let folder = gui.addFolder('Julia');
@@ -254,12 +254,7 @@ function renderParallel(view, step, multisample=0, callback) {
 
 function refresh() {
 	sampleScale = SCALE_MAX;
-	renderYstart = 0;
 	gfxDirty = true;
-}
-
-function printRGB(color){
-	return 'rgb(' + color[0] + ',' + color[1] + ',' + color[2] + ')';
 }
 
 init();
