@@ -4,7 +4,6 @@ self.onmessage = function(event) {
 	let view = event.data.view;
 	let w = view.w;
 	let y0 = event.data.y0;
-	let julia_flag = event.data.julia_flag;
 	let y1 = event.data.y1;
 	let multisample = event.data.multisample
 
@@ -13,12 +12,12 @@ self.onmessage = function(event) {
 			let m;
 			switch (multisample) {
 				case 0:
-					m = !julia_flag? mandelbrot(x,y,view) : julia(x,y,view);
+					m = !view.julia_flag? mandelbrot(x,y,view) : julia(x,y,view);
 				break;
 				default:
 					m = 0;
 					for (let i=0; i<=multisample; i++)
-						m = !julia_flag ? m+mandelbrot(x+fastRand(-0.5,0.5),y+fastRand(-0.5,0.5),view) : m+julia(x+fastRand(-0.5,0.5),y+fastRand(-0.5,0.5),view);
+						m = !view.julia_flag ? m+mandelbrot(x+fastRand(-0.5,0.5),y+fastRand(-0.5,0.5),view) : m+julia(x+fastRand(-0.5,0.5),y+fastRand(-0.5,0.5),view);
 					m = m/(multisample+1);
 					m = ~~m;
 				break;

@@ -24,7 +24,7 @@ let params = {
 	cRe: -0.8,
 	cIm: 0.166,
 	IMAX: 200,
-	julia_flag: true
+	julia_flag: false
 }
 
 var Json = {
@@ -111,6 +111,7 @@ function init() {
 		sampleScale: 1,
 		cRe: params.cRe,
 		cIm: params.cIm,
+		julia_flag: params.julia_flag,
 		IMAX: params.IMAX,
 		serialize: function() {
 			return {x: this.x, y: this.y, scale: this.scale, IMAX: this.IMAX};
@@ -119,7 +120,7 @@ function init() {
 			Object.keys(data).forEach(k => this[k] = data[k]);
 		},
 		raw: function() {
-			return {x: this.x, y: this.y, scale: this.scale, IMAX: this.IMAX, w: this.w, h: this.h};
+			return {x: this.x, y: this.y, scale: this.scale, IMAX: this.IMAX, w: this.w, h: this.h, julia_flag: this.julia_flag, cIm: this.cIm, cRe: this.cRe};
 		}
 	}
 
@@ -153,14 +154,14 @@ function init() {
 
 	let render_folder = gui.addFolder('Render');
 
-	render_folder.add(params, 'IMAX', 10, 1000).step(1).onChange(updateColors);
+	render_folder.add(view, 'IMAX', 10, 1000).step(1).onChange(updateColors);
 	render_folder.add(params, 'multisample', 0, 8).step(1).onChange(refresh);
 
 
 	let folder = gui.addFolder('Julia');
-	folder.add(params, 'julia_flag');
-	folder.add(params, 'cRe', -1, 1).onChange(updateColors);
-	folder.add(params, 'cIm', -1, 1).onChange(updateColors);
+	folder.add(view, 'julia_flag');
+	folder.add(view, 'cRe', -1, 1).onChange(updateColors);
+	folder.add(view, 'cIm', -1, 1).onChange(updateColors);
 	folder.close();
 
 	//prepare workers
@@ -287,7 +288,7 @@ function renderParallel(view, step, multisample=0, callback) {
 			step: s,
 			y0: data.y0,
 			y1: data.y1,
-			julia_flag: params.julia_flag,
+			julia_flag: view.julia_flag,
 			multisample: multisample
 		}, [data.buffer.buffer]);
 	}
