@@ -117,7 +117,7 @@ function init() {
 		"Share view": function() {
 			prompt(
 				"Copy the link to share:", 
-				document.location.origin + document.location.pathname + "#" +JSON.stringify(view.serialize())
+				document.location.origin + document.location.pathname + "#" +JSON.stringify(view.sharable())
 			);
 		}
 	}, "Share view");
@@ -176,14 +176,24 @@ function resetView() {
 		cIm: params.cIm,
 		julia_flag: params.julia_flag,
 		IMAX: params.IMAX,
-		serialize: function() {
-			return {x: this.x, y: this.y, scale: this.scale, IMAX: this.IMAX, julia_flag: this.julia_flag};
+		sharable: function() {
+			let obj = this.serialize();
+			let exclude = ["w","h","sampleScale"];
+			if (!obj.julia_flag)
+				Array.prototype.push.apply(exclude, ["julia_flag", "cRe", "cIm"]);
+			exclude.forEach(k => delete obj[k]);
+			return obj;
 		},
 		deserialize: function(data) {
 			Object.keys(data).forEach(k => this[k] = data[k]);
 		},
-		raw: function() {
-			return {x: this.x, y: this.y, scale: this.scale, IMAX: this.IMAX, w: this.w, h: this.h, julia_flag: this.julia_flag, cIm: this.cIm, cRe: this.cRe};
+		serialize: function() {
+			let obj = {};
+			Object.keys(this).forEach(k => {
+				if (typeof this[k] !== "function")
+					obj[k] = this[k];
+			});
+			return obj;
 		}
 	};
 }
@@ -270,7 +280,7 @@ function renderParallel(view, step, multisample=0, callback) {
 		};
 		data.worker.postMessage({
 			buffer: data.buffer,
-			view: view.raw(),
+			view: view.serialize(),
 			step: s,
 			y0: data.y0,
 			y1: data.y1,
