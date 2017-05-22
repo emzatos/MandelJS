@@ -1,178 +1,312 @@
-
-class Rectangle{
-	constructor(x,y,w,h){
-		this.x = x;
-		this.y = y;
-		this.w = w;
-		this.h = h;
-	}
-}
-
-let IMAX = 299;
-const ZOOM_RATE = 1.1;
-
+//var IMAX = 200;
+const ZOOM_RATE = 1.2;
+const USE_RECTS = false;
 let profile = false;
-let canvas = document.getElementById("canvas");
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
-
-let ctx = canvas.getContext("2d");
-let idata = ctx.getImageData(0,0,canvas.width,canvas.height);
-let ibuffer = new ArrayBuffer(idata.data.length);
-let ibuffer8 = new Uint8ClampedArray(ibuffer);
-let ibuffer32 = new Uint32Array(ibuffer);
-
-let view = {
-	x: 0,
-	y: 0,
-	w: canvas.width,
-	h: canvas.height,
-	scale: 0.004
-};
-
-
-let dragging = false;
-let dragStart = {x: 0, y: 0};
-let viewStart = {x: 0, y: 0};
+let SCALE_MAX = 12;
+let sampleScale = SCALE_MAX;
+let frameTime = {scale: 1, time: 0, t0: Date.now()};
+let canvas, tempcanvas;
+let ctx, tctx, idata;
+let colormap;
+let view;
 let gfxDirty = true;
+let renderYstart = 0;
+let ibuffer, ibuffer8, ibuffer32;
 
-//event listeners
-canvas.addEventListener("mousedown",function(event){eDragStart(event.layerX, event.layerY)},false);
-document.addEventListener("mouseup",function(event){eDragEnd()},false);
-document.addEventListener("mousemove", function(event){eDrag(event.pageX - canvas.offsetLeft, event.pageY - canvas.offsetTop)},false);
-canvas.addEventListener("wheel", function(event){
-	gfxDirty = true;
-	let dy = event.deltaY;
-	if (dy < 0)
-		view.scale /= ZOOM_RATE;
-	else if (dy > 0)
-		view.scale *= ZOOM_RATE;
-	else
-		gfxDirty = false;
-},false);
-
-
-function printRGB(color){
-	return 'rgb(' + color[0] + ',' + color[1] + ',' + color[2] + ')';
+let params = {
+	color1 : '#1C1D21',
+	color2 : '#31353D',
+	color3 : '#445878',
+	color4 : '#92CDCF',
+	color5 : '#EEEFF7',
+	IMAX: 200,
+	multisample: 0,
+	cRe: -0.8,
+	cIm: 0.166,
+	julia_flag: false
 }
 
+var Json = {
+	"preset": "Quiet Cry",
+	"remembered": {
+		"Quiet Cry": {
+			"0": {
+				color1 : '#1C1D21',
+				color2 : '#31353D',
+				color3 : '#445878',
+				color4 : '#92CDCF',
+				color5 : '#EEEFF7',
+			}
+		},
+		"Blue Sky": {
+			"0": {
+				color1 : '#16193B',
+				color2 : '#35478C',
+				color3 : '#4E7AC7',
+				color4 : '#7FB2F0',
+				color5 : '#ADD5F7',
+			}
+		},
+		"Sunset Camping": {
+			"0": {
+		        color1: "#2d112d",
+		        color2: "#530035",
+		        color3: "#822701",
+		        color4: "#cfa964",
+		        color5: "#ffffd4",
+			}
+		},
+		"Mandel": {
+			"0": {
+				color1 : 'navy',
+				color2 : 'white',
+				color3 : 'orange',
+				color4 : 'red',
+				color5 : 'black',
+			}
+		},
+		"Mandel Invert": {
+			"0": {
+				color1 : 'black',
+				color2 : 'red',
+				color3 : 'orange',
+				color4 : 'white',
+				color5 : 'navy',
+			}
+		}
+	},
+	"closed": true,
+	"folders": {}
+}
 
-function eDragStart(x,y) {
-	dragging = true;
-	dragStart.x = event.layerX;
-	dragStart.y = event.layerY;
-	viewStart.x = view.x;
-	viewStart.y = view.y;
-}
-function eDragEnd() {
-	dragging = false;
-	gfxDirty = true;
-}
-function eDrag(x,y) {
-	if (dragging) {
-		view.x = viewStart.x + (x - dragStart.x)*view.scale;
-		view.y = viewStart.y + (y - dragStart.y)*view.scale;
-		gfxDirty = true;
+function init() {
+	//get DOM elements
+	debugText = document.getElementById("debugText");
+	canvas = document.getElementById("canvas");
+	canvas.width = window.innerWidth;
+	canvas.height = window.innerHeight;
+	tempcanvas = document.createElement("canvas");
+	tempcanvas.width = canvas.width;
+	tempcanvas.height = canvas.height;
+
+	//prepare canvases
+	ctx = canvas.getContext("2d");
+	tctx = tempcanvas.getContext("2d");
+	idata = ctx.getImageData(0,0,canvas.width,canvas.height);
+
+	//prepare buffers
+	ibuffer = new ArrayBuffer(canvas.width*canvas.height*4);
+	ibuffer8 = new Uint8ClampedArray(ibuffer);
+	ibuffer32 = new Uint32Array(ibuffer);
+
+	resetView();
+
+	//parse view data contained in hash, if any
+	if (document.location.hash) {
+		let parsed = JSON.parse(document.location.hash.substring(1));
+		view.deserialize(parsed);
 	}
+
+	//prepare GUI
+	gui = new dat.GUI({load:Json});
+	gui.remember(params);
+	gui.add({
+		"Share view": function() {
+			prompt(
+				"Copy the link to share:", 
+				document.location.origin + document.location.pathname + "#" +JSON.stringify(view.serialize())
+			);
+		}
+	}, "Share view");
+	gui.add({"Reset view": resetView}, "Reset view");
+	let color_folder = gui.addFolder('Colors');
+
+	color_folder.addColor(params, 'color1').onChange(updateColors);
+	color_folder.addColor(params, 'color2').onChange(updateColors);
+	color_folder.addColor(params, 'color3').onChange(updateColors);
+	color_folder.addColor(params, 'color4').onChange(updateColors);
+	color_folder.addColor(params, 'color5').onChange(updateColors);
+
+	let render_folder = gui.addFolder('Render');
+
+	render_folder.add(params, 'IMAX', 10, 1000).step(1).onChange(updateColors);
+	render_folder.add(params, 'multisample', 0, 8).step(1).onChange(refresh);
+
+
+	let folder = gui.addFolder('Julia');
+	folder.add(params, 'julia_flag');
+	folder.add(params, 'cRe', -1, 1).onChange(updateColors);
+	folder.add(params, 'cIm', -1, 1).onChange(updateColors);
+	folder.close();
+
+	//start
+	updateColors();
+	frame();
 }
 
-//generate color lookup table
-let f  = function(color){
-	return chroma(color).rgb();
+function resetView() {
+	//setup view
+	view = {
+		x: 0,
+		y: 0,
+		w: canvas.width,
+		h: canvas.height,
+		scale: 0.004,
+		serialize: function() {
+			return {x: this.x, y: this.y, scale: this.scale};
+		},
+		deserialize: function(data) {
+			Object.keys(data).forEach(k => this[k] = data[k]);
+		}
+	};
 }
-let colormap = chroma.scale(['navy','white','red','black'])
-	.domain([0,IMAX/3,2*IMAX/3, IMAX])
-	.colors(IMAX+1).map(col => {
+
+function updateColors(){
+	colormap = chroma.scale([params.color1, params.color2, params.color3, params.color4, params.color5].reverse())
+	.domain([0,params.IMAX/4,params.IMAX/2, 3*params.IMAX/4, params.IMAX])
+	.colors(params.IMAX+1).map(col => {
 		let rgb = chroma(col).rgb();
 		return (255 << 24) | (rgb[2] << 16) | (rgb[1] << 8) | (rgb[0]);
 	});
+}
 
-render();
-
-function render() {
+function frame() {
+	//skip frame if not dirty
 	if (!gfxDirty && !profile) {
+		requestAnimationFrame(frame);
+		return;
+	}
+
+	//render whole screen
+	let yStop = render(view, sampleScale, renderYstart, params.multisample);
+
+	//update sample scale
+	if (yStop >= canvas.height) { //finished the screen
+		renderYstart = 0;
+
+		frameTime.scale = sampleScale;
+		frameTime.time = (Date.now() - frameTime.t0)/1000;
+		frameTime.t0 = Date.now();
+
+		//progressively increase sample resolution
+		if (sampleScale>1) {
+			sampleScale = Math.max(1,Math.floor(sampleScale/4));
+			gfxDirty = true;
+		}
+		else {
+			gfxDirty = false;
+		}
+	}
+	else {
+		renderYstart = yStop;
+	}
+
+	updateDebug();
+	requestAnimationFrame(frame);
+}
+
+function updateDebug(){
+ 	debugText.innerHTML = [
+ 		`10^${Math.log10((1/(view.scale/0.004))).toFixed(1)}x zoom`,
+ 		`${frameTime.scale}X: ${frameTime.time.toFixed(2)}s`
+ 	].join("<br>");
+}
+
+/**
+ * Renders an area of the screen.
+ * Returns the area rendered.
+ */
+ function render(view, step, yStart=0, multisample=0, timeLimit=100) {
+ 	ibuffer32.fill(0);
+
+	//rectangle "optimization"
+	if (USE_RECTS) {
+		fillRects(new Rectangle(0,0,canvas.width/2, canvas.height));
+		fillRects(new Rectangle(canvas.width/2, 0, canvas.width/2, canvas.height));
 		requestAnimationFrame(render);
 		return;
 	}
-	gfxDirty = false;
-	
-	let data = idata.data;
-	let index = 0;
 
-	for (let y=0,h=canvas.height; y<h; y++) {
-		for (let x=0,w=canvas.width; x<w; x++) {
-			let m = mandelbrot(x,y,view);
+	//compute mandelbrot
+	let t0 = Date.now();
+	let invstep = 1/step;
+	let once = false;
 
-			ibuffer32[index] = colormap[m];
-			index = index + 1;
-		}
-	}
-	data.set(ibuffer8);
-	ctx.putImageData(idata,0,0);
-	requestAnimationFrame(render);
-}
-
-
-function checkRect(rect){
-	let values = []
-
-	for(var i=rect.x; i<=rect.w; i++){
-		if(i == rect.x || i == rect.w){
-			//calculate whole column
-
-			for(var j=y; j<=rect.h; j++){
-				values.push(mandelbrot(i, j, view));
+	let x,y;
+	let w = canvas.width, h = canvas.height;
+	for (y=yStart; y<h; y=y+step) {
+		for (x=0; x<w; x=x+step) {
+			let m;
+			switch (multisample) {
+				case 0:
+					m = params.julia_flag? julia(x,y,view) : mandelbrot(x,y,view);
+				break;
+				default:
+					m = 0;
+					for (let i=0; i<=multisample; i++)
+						m = params.julia_flag? m+julia(x+fastRand(-0.5,0.5),y+fastRand(-0.5,0.5),view) : m+mandelbrot(x+fastRand(-0.5,0.5),y+fastRand(-0.5,0.5),view);
+					m = m/(multisample+1);
+					m = ~~m;
+				break;
 			}
-
-		}else{
-			//calculate first and last points
-			values.push(mandelbrot(i, rect.y, view));
-			values.push(mandelbrot(i, rect.h, view));
-
+			ibuffer32[y*w*invstep+x*invstep] = colormap[m];
 		}
-	}
-	let ref = values[0]
-	if(values.every(x => x == ref)){
-		return ref;
-	}else{
-		return -1;
+		if (once && Date.now() - t0 > timeLimit) {
+			break;
+		}
+		once = true;
 	}
 
+	//copy data back to canvas
+	idata.data.set(ibuffer8);
+	tctx.putImageData(idata,0,0);
 
+	//upscale to canvas
+	ctx.drawImage(tempcanvas,0,0,canvas.width*step,canvas.height*step);
+
+	return y;
 }
 
-
-function fillRects(rect){
-	var ref = checkRect(rect);
-	if(ref != -1){
-
-		//ctx.fillStyle 
-		ctx.rect()
-
-
-	}else{
-		fillRects(new Rectangle(rect.x, rect.y, rect.w/2, rect.h/2));
-		fillRects(new Rectangle(rect.x + rect.w/2, rect.y, rect.w/2, rect.h/2));
-		fillRects(new Rectangle(rect.x, rect.y + rect.h/2, rect.w/2, rect.h/2));
-		fillRects(new Rectangle(rect.x + rect.w/2, rect.y + rect.h/2, rect.w/2, rect.h/2));
-	}
+function refresh() {
+	sampleScale = SCALE_MAX;
+	renderYstart = 0;
+	gfxDirty = true;
 }
 
+function norm(x,y){
+	return Math.sqrt(x*x+y*y);
+}
 
+function julia(px,py, view){
+	let x = ((px - view.w/2)*view.scale-view.x),
+	y = ((py - view.h/2)*view.scale-view.y);
+	
+	//let x = 0, y = 0;
+	let x2, y2;
+	var iteration = 0;
+	while (iteration < params.IMAX && (x2=x*x) + (y2=y*y) < 4) {
+		//let xtemp = x2 - y2+ x0;
+		y = 2*x*y+params.cIm;
+		x = x2-y2+params.cRe;
+		iteration++;
+	}
+	return iteration;
+}
 
 function mandelbrot(px, py, view) {
 	let x0 = ((px - view.w/2)*view.scale-view.x),
-		y0 = ((py - view.h/2)*view.scale-view.y);
+	y0 = ((py - view.h/2)*view.scale-view.y);
 
+	
 	let q = (x0-0.25) * (x0-0.25) + y0*y0;
-	if(q * (q + (x0-0.25)) < y0 * y0 * 0.25 || (x0+1) * (x0+1) + y0*y0 < 0.0625){
-		return IMAX;
+	if (q * (q + (x0-0.25)) < y0 * y0 * 0.25 || (x0+1) * (x0+1) + y0*y0 < 0.0625) {
+		return params.IMAX;
 	}
 
 	let x = 0, y = 0;
 	let x2, y2;
 	var iteration = 0;
-	while (iteration < IMAX && (x2=x*x) + (y2=y*y) < 4) {
+	while (iteration < params.IMAX && (x2=x*x) + (y2=y*y) < 4) {
 		let xtemp = x2 - y2 + x0;
 		y = 2*x*y + y0;
 		x = xtemp;
@@ -180,3 +314,19 @@ function mandelbrot(px, py, view) {
 	}
 	return iteration;
 }
+
+function printRGB(color){
+	return 'rgb(' + color[0] + ',' + color[1] + ',' + color[2] + ')';
+}
+
+fastRand = (function(){
+	const len = 373;
+	let rand = [], idx = 0;
+	for (let i=0; i<len; i++)
+		rand.push(Math.random());
+	return function(a,b) {
+		return rand[idx=(idx+1)%len] * (b-a) + a;
+	};
+})();
+
+init();
