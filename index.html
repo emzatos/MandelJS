@@ -28,11 +28,35 @@
 			pointer-events: none;
 			background: rgba(255,255,255,0.25);
 			padding: 0.5em;
+			user-select: none;
+		}
+		.zoom {
+			position: absolute;
+			user-select: none;
+			background: rgba(255,255,255,0.25);
+			border: 2px solid black;
+			color: black;
+			bottom: 1em;
+			padding: 1em;
+			border-radius: 4px;
+			text-align: center;
+			font-size: 2em;
+			visibility: hidden;
+		}
+		.zoom.left {
+			left: 1em;
+			right: 52%;
+		}
+		.zoom.right {
+			right: 1em;
+			left: 52%;
 		}
 	</style>
 </head>
 <body>
 	<canvas id="canvas"></canvas>
 	<span id="debugText"></span>
+	<span class="zoom right" id="zoomIn">+</span>
+	<span class="zoom left" id="zoomOut">-</span>
 </body>
 </html>
