@@ -23,7 +23,8 @@ let params = {
 	multisample: 0,
 	cRe: -0.8,
 	cIm: 0.166,
-	julia_flag: false
+	IMAX: 200,
+	julia_flag: true
 }
 
 var Json = {
@@ -108,7 +109,9 @@ function init() {
 		h: canvas.height,
 		scale: 0.004,
 		sampleScale: 1,
-		IMAX: 200,
+		cRe: params.cRe,
+		cIm: params.cIm,
+		IMAX: params.IMAX,
 		serialize: function() {
 			return {x: this.x, y: this.y, scale: this.scale, IMAX: this.IMAX};
 		},
@@ -129,13 +132,8 @@ function init() {
 	//prepare GUI
 	gui = new dat.GUI({load:Json});
 	gui.remember(params);
-	gui.addColor(params, 'color1').onChange(updateColors);
-	gui.addColor(params, 'color2').onChange(updateColors);
-	gui.addColor(params, 'color3').onChange(updateColors);
-	gui.addColor(params, 'color4').onChange(updateColors);
-	gui.addColor(params, 'color5').onChange(updateColors);
-	gui.add(view, 'IMAX', 10, 2000).step(1).onChange(updateColors);
-	gui.add(params, 'multisample', 0, 8).step(1).onChange(refresh);
+
+
 	gui.add({
 		"Share view": function() {
 			prompt(
@@ -289,6 +287,7 @@ function renderParallel(view, step, multisample=0, callback) {
 			step: s,
 			y0: data.y0,
 			y1: data.y1,
+			julia_flag: params.julia_flag,
 			multisample: multisample
 		}, [data.buffer.buffer]);
 	}
