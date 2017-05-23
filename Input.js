@@ -2,6 +2,20 @@ let dragging = false;
 let dragStart = {x: 0, y: 0};
 let viewStart = {x: 0, y: 0};
 
+let btnZoomIn = document.getElementById("zoomIn");
+let btnZoomOut = document.getElementById("zoomOut");
+btnZoomIn.addEventListener("touchstart", function(event){
+	eWheel(-1);
+	event.preventDefault();
+}, false);
+btnZoomOut.addEventListener("touchstart", function(event){
+	eWheel(1);
+	event.preventDefault();
+}, false);
+function enableZoomBtns() {
+	btnZoomOut.style.visibility = btnZoomIn.style.visibility = "visible";
+}
+
 //event listeners
 canvas.addEventListener("mousedown",function(event){
 	eDragStart(event.layerX, event.layerY)
@@ -16,11 +30,8 @@ document.addEventListener("mousemove", function(event){
 	);
 },false);
 canvas.addEventListener("touchstart",function(event){
-	if (event.targetTouches.length === 2)
-		eWheel(-1);
-	else if (event.targetTouches.length === 3)
-		eWheel(1);
-	else {
+	enableZoomBtns();
+	if (event.targetTouches.length === 1) {
 		eDragStart(
 			event.targetTouches[0].pageX - canvas.offsetLeft,
 			event.targetTouches[0].pageY - canvas.offsetTop

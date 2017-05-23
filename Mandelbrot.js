@@ -101,28 +101,6 @@ function init() {
 	ibuffer32 = new Uint32Array(ibuffer);
 
 	resetView();
-	//setup view
-	view = {
-		x: 0,
-		y: 0,
-		w: canvas.width,
-		h: canvas.height,
-		scale: 0.004,
-		sampleScale: 1,
-		cRe: params.cRe,
-		cIm: params.cIm,
-		julia_flag: params.julia_flag,
-		IMAX: params.IMAX,
-		serialize: function() {
-			return {x: this.x, y: this.y, scale: this.scale, IMAX: this.IMAX};
-		},
-		deserialize: function(data) {
-			Object.keys(data).forEach(k => this[k] = data[k]);
-		},
-		raw: function() {
-			return {x: this.x, y: this.y, scale: this.scale, IMAX: this.IMAX, w: this.w, h: this.h, julia_flag: this.julia_flag, cIm: this.cIm, cRe: this.cRe};
-		}
-	}
 
 	//parse view data contained in hash, if any
 	if (document.location.hash) {
@@ -139,7 +117,7 @@ function init() {
 		"Share view": function() {
 			prompt(
 				"Copy the link to share:", 
-				document.location.origin + document.location.pathname + "#" +JSON.stringify(view.serialize())
+				document.location.origin + document.location.pathname + "#" +JSON.stringify(view.sharable())
 			);
 		}
 	}, "Share view");
@@ -193,11 +171,29 @@ function resetView() {
 		w: canvas.width,
 		h: canvas.height,
 		scale: 0.004,
-		serialize: function() {
-			return {x: this.x, y: this.y, scale: this.scale};
+		sampleScale: 1,
+		cRe: params.cRe,
+		cIm: params.cIm,
+		julia_flag: params.julia_flag,
+		IMAX: params.IMAX,
+		sharable: function() {
+			let obj = this.serialize();
+			let exclude = ["w","h","sampleScale"];
+			if (!obj.julia_flag)
+				Array.prototype.push.apply(exclude, ["julia_flag", "cRe", "cIm"]);
+			exclude.forEach(k => delete obj[k]);
+			return obj;
 		},
 		deserialize: function(data) {
 			Object.keys(data).forEach(k => this[k] = data[k]);
+		},
+		serialize: function() {
+			let obj = {};
+			Object.keys(this).forEach(k => {
+				if (typeof this[k] !== "function")
+					obj[k] = this[k];
+			});
+			return obj;
 		}
 	};
 }
@@ -284,7 +280,7 @@ function renderParallel(view, step, multisample=0, callback) {
 		};
 		data.worker.postMessage({
 			buffer: data.buffer,
-			view: view.raw(),
+			view: view.serialize(),
 			step: s,
 			y0: data.y0,
 			y1: data.y1,
