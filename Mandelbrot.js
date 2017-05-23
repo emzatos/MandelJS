@@ -288,7 +288,6 @@ function renderParallel(view, step, multisample=0, callback) {
 			step: s,
 			y0: data.y0,
 			y1: data.y1,
-			julia_flag: view.julia_flag,
 			multisample: multisample
 		}, [data.buffer.buffer]);
 	}

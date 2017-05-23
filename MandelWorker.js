@@ -51,6 +51,7 @@ function mandelbrot(px, py, view) {
 }
 
 function julia(px,py, view){
+
 	let x = ((px - view.w/2)*view.scale-view.x),
 	y = ((py - view.h/2)*view.scale-view.y);
 	
