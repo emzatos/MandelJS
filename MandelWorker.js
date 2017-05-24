@@ -7,17 +7,18 @@ self.onmessage = function(event) {
 	let y1 = event.data.y1;
 	let multisample = event.data.multisample
 
+	let f = view.julia_flag ? julia : mandelbrot;
 	for (let y=y0; y<=y1; y=y+step) {
 		for (let x=0; x<w; x=x+step) {
 			let m;
 			switch (multisample) {
 				case 0:
-					m = !view.julia_flag? mandelbrot(x,y,view) : julia(x,y,view);
+					m = f(x,y,view);
 				break;
 				default:
 					m = 0;
 					for (let i=0; i<=multisample; i++)
-						m = !view.julia_flag ? m+mandelbrot(x+fastRand(-0.5,0.5),y+fastRand(-0.5,0.5),view) : m+julia(x+fastRand(-0.5,0.5),y+fastRand(-0.5,0.5),view);
+						m = m + f(x+fastRand(-0.5,0.5),y+fastRand(-0.5,0.5),view);
 					m = m/(multisample+1);
 					m = ~~m;
 				break;
@@ -50,16 +51,13 @@ function mandelbrot(px, py, view) {
 	return iteration;
 }
 
-function julia(px,py, view){
-
+function julia(px,py, view) {
 	let x = ((px - view.w/2)*view.scale-view.x),
 	y = ((py - view.h/2)*view.scale-view.y);
 	
-	//let x = 0, y = 0;
 	let x2, y2;
 	var iteration = 0;
 	while (iteration < view.IMAX && (x2=x*x) + (y2=y*y) < 4) {
-		//let xtemp = x2 - y2+ x0;
 		y = 2*x*y+view.cIm;
 		x = x2-y2+view.cRe;
 		iteration++;
