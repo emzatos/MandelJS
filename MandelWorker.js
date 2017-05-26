@@ -89,7 +89,7 @@ function performWork() {
 			var didx = (y-y0)*w+x;
 			buffer[didx] = m;
 		}
-		if (performance.now() - t0 > 40) {
+		if (performance.now() - t0 > 30) {
 			self.y0 = y;
 			self.workTimeout = setTimeout(performWork, 0);
 			return;

@@ -6,12 +6,12 @@ let SCALE_MAX = 8;
 let sampleScale = SCALE_MAX;
 let frameTime = {scale: 1, time: 0, t0: Date.now()};
 let canvas, tempcanvas;
-let ctx, tctx, idata;
+let ctx;
 let colormap;
 let view;
 let gfxDirty = true;
 let renderYstart = 0;
-let ibuffer, ibuffer8, ibuffer32;
+let ibuffer, ibuffer8, ibuffer32, idata;
 let workerPool;
 
 let params = {
@@ -86,19 +86,15 @@ function init() {
 	canvas = document.getElementById("canvas");
 	canvas.width = window.innerWidth;
 	canvas.height = window.innerHeight;
-	tempcanvas = document.createElement("canvas");
-	tempcanvas.width = canvas.width;
-	tempcanvas.height = canvas.height;
 
 	//prepare canvases
 	ctx = canvas.getContext("2d");
-	tctx = tempcanvas.getContext("2d");
-	idata = ctx.getImageData(0,0,canvas.width,canvas.height);
 
 	//prepare buffers
 	ibuffer = new ArrayBuffer(canvas.width*canvas.height*4);
 	ibuffer8 = new Uint8ClampedArray(ibuffer);
 	ibuffer32 = new Uint32Array(ibuffer);
+	idata = new ImageData(ibuffer8, canvas.width, canvas.height);
 
 	resetView();
 
@@ -272,10 +268,10 @@ async function renderParallel(view, step, multisample=0) {
 
 	//copy data back to canvas
 	idata.data.set(ibuffer8);
-	tctx.putImageData(idata,0,0);
+	let ibitmap = await createImageBitmap(idata);
 
 	//upscale to canvas
-	ctx.drawImage(tempcanvas,0,0,canvas.width*step,canvas.height*step);
+	ctx.drawImage(ibitmap,0,0,canvas.width*step,canvas.height*step);
 }
 
 async function stopRendering() {
