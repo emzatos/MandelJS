@@ -241,24 +241,20 @@ function updateDebug(){
 
 async function renderParallel(view, step, multisample=0) {
 	ibuffer32.fill(0);
-	let invstep = 1/step;
-	let s = step;
 
-	let promises = workerPool.map(worker => {
-		return worker.startWork({
+	let promises = workerPool.map(async worker => {
+		//wait for computation
+		await worker.startWork({
 			view: view.serialize(),
-			step: s,
+			step: step,
 			multisample: multisample
 		});
-	});
 
-	//wait for rendering
-	await Promise.all(promises);
-
-	promises = workerPool.map(async worker => {
+		//get buffer back from worker
 		let buffer = await worker.requestBuffer();
-		let w = view.w, h = view.h;
 
+		//copy computed values to image
+		let w = view.w, h = view.h;
 		let offset = Math.floor(worker.y0/step)*w;
 		let rows = Math.ceil((worker.y1-worker.y0)/step);
 		for (let row=0; row<rows; row=row+1) {
@@ -270,7 +266,7 @@ async function renderParallel(view, step, multisample=0) {
 		}
 	});
 
-	//wait for copying
+	//wait for rendering
 	await Promise.all(promises);
 
 	//copy data back to canvas
