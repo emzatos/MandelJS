@@ -238,6 +238,7 @@ function updateDebug(extraItems=[]){
  		`${frameTime.scale}X: ${frameTime.time.toFixed(2)}s`
  	].concat(extraItems).join("<br>");
 }
+updateDebug = debounce(updateDebug, 250);
 
 async function renderParallel(view, step, multisample=0) {
 	ibuffer32.fill(0);
@@ -258,8 +259,8 @@ async function renderParallel(view, step, multisample=0) {
 		let offset = Math.floor(worker.y0/step)*w;
 		let rows = Math.ceil((worker.y1-worker.y0)/step);
 		for (let row=0; row<rows; row=row+1) {
-			for (let col=0; col<w/step; col=col+1) {
-				let iSrc = row*step*w+col*step;
+			for (let col=0, cols=w/step; col<cols; col=col+1) {
+				let iSrc = (row*w+col)*step;
 				let iDst = offset+row*w+col;
 				ibuffer32[iDst] = colormap[buffer[iSrc]];
 			}
@@ -279,7 +280,7 @@ async function renderParallel(view, step, multisample=0) {
 
 async function stopRendering() {
 	await Promise.all(workerPool.map(worker => worker.terminate()));
-	updateDebug(["STOPPED"]);
+	// updateDebug(["STOPPED"]);
 }
 
 async function refresh() {
@@ -362,6 +363,34 @@ class MWorker {
 			}, params));
 		});
 	}
+}
+
+function debounce(func, wait) {
+	let timer = null;
+	let args = null;
+	let context = null;
+	let ready = true;
+	let called = false;
+	
+	let call = function() {
+		func.apply(context, args);
+		ready = false;
+		called = false;
+		setTimeout(f => {
+			ready = true;
+			if (called)
+				call();
+		}, wait);
+	};
+
+	return function(){
+		args = arguments;
+		context = this;
+		if (ready)
+			call();
+		else
+			called = true;
+	};
 }
 
 init();
