@@ -50,7 +50,7 @@ self.onmessage = function(event) {
 
 function performWork() {
 	//check to ensure ownership of buffer
-	let buffer = self.buffer;
+	var buffer = self.buffer;
 	if (buffer === null) {
 		self.postMessage({
 			type: "workDone",
@@ -60,36 +60,36 @@ function performWork() {
 	}
 
 	//alias params
-	let step = self.params.step;
-	let view = self.params.view;
-	let w = view.w;
-	let y0 = self.params.y0;
-	let y1 = self.params.y1;
-	let multisample = self.params.multisample;
+	var step = self.params.step;
+	var view = self.params.view;
+	var w = view.w;
+	var y0 = self.params.y0;
+	var y1 = self.params.y1;
+	var multisample = self.params.multisample;
 
 	//do computation
-	let t0 = performance.now();
-	let f = view.julia_flag ? julia : mandelbrot;
-	for (let y=self.y0; y<=y1; y=y+step) {
-		for (let x=0; x<w; x=x+step) {
-			let m;
+	var t0 = performance.now();
+	var f = view.julia_flag ? julia : mandelbrot;
+	for (var y=self.y0; y<=y1; y=y+step) {
+		for (var x=0; x<w; x=x+step) {
+			var m;
 			switch (multisample) {
 				case 0:
 					m = f(x,y,view);
 				break;
 				default:
 					m = 0;
-					for (let i=0; i<=multisample; i++)
+					for (var i=0; i<=multisample; i++)
 						m = m + f(x+fastRand(-0.5,0.5),y+fastRand(-0.5,0.5),view);
 					m = m/(multisample+1);
 					m = ~~m;
 				break;
 			}
 
-			let didx = (y-y0)*w+x;
+			var didx = (y-y0)*w+x;
 			buffer[didx] = m;
 		}
-		if (performance.now() - t0 > 10) {
+		if (performance.now() - t0 > 40) {
 			self.y0 = y;
 			self.workTimeout = setTimeout(performWork, 0);
 			return;
@@ -99,8 +99,9 @@ function performWork() {
 	self.workTimeout = -1;
 	self.postMessage({
 		type: "workDone",
+		buffer: self.buffer,
 		success: true
-	});
+	}, [self.buffer.buffer]);
 }
 
 function mandelbrot(px, py, view) {

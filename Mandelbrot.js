@@ -143,7 +143,7 @@ function init() {
 	folder.close();
 
 	//prepare workers
-	const N_WORKERS = 16;
+	const N_WORKERS = 8;
 	workerPool = [];
 	for (let i=0; i<N_WORKERS; i++) {
 		let y0 = Math.floor(i/N_WORKERS*view.h);
@@ -245,18 +245,13 @@ async function renderParallel(view, step, multisample=0) {
 	let success = true;
 	let promises = workerPool.map(async worker => {
 		//wait for computation
-		let completed = await worker.startWork({
+		let buffer = await worker.startWork({
 			view: view.serialize(),
 			step: step,
 			multisample: multisample
 		});
-		if (!completed) {
-			success = false;
+		if (buffer === null)
 			return;
-		}
-
-		//get buffer back from worker
-		let buffer = await worker.requestBuffer();
 
 		//copy computed values to image
 		let w = view.w, h = view.h;
@@ -274,14 +269,12 @@ async function renderParallel(view, step, multisample=0) {
 	//wait for rendering
 	await Promise.all(promises);
 
-	if (success) {
-		//copy data back to canvas
-		idata.data.set(ibuffer8);
-		tctx.putImageData(idata,0,0);
+	//copy data back to canvas
+	idata.data.set(ibuffer8);
+	tctx.putImageData(idata,0,0);
 
-		//upscale to canvas
-		ctx.drawImage(tempcanvas,0,0,canvas.width*step,canvas.height*step);
-	}
+	//upscale to canvas
+	ctx.drawImage(tempcanvas,0,0,canvas.width*step,canvas.height*step);
 }
 
 async function stopRendering() {
@@ -355,7 +348,12 @@ class MWorker {
 
 		return new Promise((resolve, reject) => {
 			this.worker.onmessage = (event) => {
-				resolve(event.data.success);
+				if (event.data.success) {
+					this.buffer = event.data.buffer;
+					resolve(event.data.buffer);
+				}
+				else
+					resolve(null);
 			};
 			this.worker.postMessage(Object.assign({
 				type: "startWork",
