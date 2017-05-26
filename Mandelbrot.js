@@ -147,7 +147,7 @@ function init() {
 	folder.close();
 
 	//prepare workers
-	const N_WORKERS = 8;
+	const N_WORKERS = navigator.hardwareConcurrency || 4;
 	workerPool = [];
 	for (let i=0; i<N_WORKERS; i++) {
 		let y0 = Math.floor(i/N_WORKERS*view.h);
