@@ -51,11 +51,11 @@ var Json = {
 		},
 		"Sunset Camping": {
 			"0": {
-		        color1: "#2d112d",
-		        color2: "#530035",
-		        color3: "#822701",
-		        color4: "#cfa964",
-		        color5: "#ffffd4",
+				color1: "#2d112d",
+				color2: "#530035",
+				color3: "#822701",
+				color4: "#cfa964",
+				color5: "#ffffd4",
 			}
 		},
 		"Mandel": {
@@ -115,10 +115,17 @@ function init() {
 			prompt(
 				"Copy the link to share:", 
 				document.location.origin + document.location.pathname + "#" +JSON.stringify(view.sharable())
-			);
+				);
 		}
 	}, "Share view");
 	gui.add({"Reset view": resetView}, "Reset view");
+	gui.add({"Export view": function(){
+		var download = function (){
+			window.location.href = document.getElementById('canvas').toDataURL("image/png").replace("image/png", "image/octet-stream");
+		}
+
+		frameTime.scale == 1 ? download() : alert('Canvas not fully rendered');
+	}}, "Export view");
 	let color_folder = gui.addFolder('Colors');
 
 	color_folder.addColor(params, 'color1').onChange(updateColors);
@@ -230,10 +237,10 @@ function frame() {
 }
 
 function updateDebug(extraItems=[]){
- 	debugText.innerHTML = [
- 		`10^${Math.log10((1/(view.scale/0.004))).toFixed(1)}x zoom`,
- 		`${frameTime.scale}X: ${frameTime.time.toFixed(2)}s`
- 	].concat(extraItems).join("<br>");
+	debugText.innerHTML = [
+	`10^${Math.log10((1/(view.scale/0.004))).toFixed(1)}x zoom`,
+	`${frameTime.scale}X: ${frameTime.time.toFixed(2)}s`
+	].concat(extraItems).join("<br>");
 }
 updateDebug = debounce(updateDebug, 250);
 
@@ -279,6 +286,7 @@ async function renderParallel(view, step, multisample=0) {
 
 	//upscale to canvas
 	ctx.drawImage(ibitmap,0,0,canvas.width*step,canvas.height*step);
+
 	ibitmap.close();
 }
 
@@ -396,5 +404,8 @@ function debounce(func, wait) {
 			called = true;
 	};
 }
+
+
+
 
 init();
