@@ -13,6 +13,7 @@ let gfxDirty = true;
 let renderYstart = 0;
 let ibuffer, ibuffer8, ibuffer32, idata;
 let workerPool;
+let bufferCleared = true;
 
 let params = {
 	color1 : '#1C1D21',
@@ -216,7 +217,7 @@ function frame() {
 
 		//progressively increase sample resolution
 		if (sampleScale>1) {
-			sampleScale = Math.max(1,Math.floor(sampleScale/4));
+			sampleScale = Math.max(1,Math.floor(sampleScale/2));
 			gfxDirty = true;
 		}
 		else {
@@ -237,7 +238,8 @@ function updateDebug(extraItems=[]){
 updateDebug = debounce(updateDebug, 250);
 
 async function renderParallel(view, step, multisample=0) {
-	ibuffer32.fill(0);
+	//ensure that buffer has been cleared
+	await bufferCleared;
 
 	let success = true;
 	let promises = workerPool.map(async worker => {
@@ -268,10 +270,16 @@ async function renderParallel(view, step, multisample=0) {
 
 	//copy data back to canvas
 	idata.data.set(ibuffer8);
+
+	//create a bitmap from data
 	let ibitmap = await createImageBitmap(idata);
+
+	//begin clearing buffer
+	bufferCleared = (async f => ibuffer32.fill(0))();
 
 	//upscale to canvas
 	ctx.drawImage(ibitmap,0,0,canvas.width*step,canvas.height*step);
+	ibitmap.close();
 }
 
 async function stopRendering() {
