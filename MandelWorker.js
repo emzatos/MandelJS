@@ -1,6 +1,9 @@
 self.buffer = null;
+self.workTimeout = null;
 self.onmessage = function(event) {
 	if (event.data.type === "startWork") {
+		self.params = event.data;
+		self.y0 = self.params.y0;
 		performWork(event.data);
 	}
 	else if (event.data.type === "requestBuffer") {
@@ -27,6 +30,16 @@ self.onmessage = function(event) {
 			type: "ok"
 		});
 	}
+	else if (event.data.type === "abort") {
+		if (self.workTimeout >= 0) {
+			clearTimeout(self.workTimeout);
+			self.workTimeout = -1;
+			self.postMessage({
+				type: "workDone",
+				success: false
+			});
+		}
+	}
 	else if (event.data.type === "ok") {
 		console.log("OK");
 	}
@@ -35,7 +48,7 @@ self.onmessage = function(event) {
 	}
 };
 
-function performWork(params) {
+function performWork() {
 	//check to ensure ownership of buffer
 	let buffer = self.buffer;
 	if (buffer === null) {
@@ -47,16 +60,17 @@ function performWork(params) {
 	}
 
 	//alias params
-	let step = params.step;
-	let view = params.view;
+	let step = self.params.step;
+	let view = self.params.view;
 	let w = view.w;
-	let y0 = params.y0;
-	let y1 = params.y1;
-	let multisample = params.multisample
+	let y0 = self.params.y0;
+	let y1 = self.params.y1;
+	let multisample = self.params.multisample;
 
 	//do computation
+	let t0 = performance.now();
 	let f = view.julia_flag ? julia : mandelbrot;
-	for (let y=y0; y<=y1; y=y+step) {
+	for (let y=self.y0; y<=y1; y=y+step) {
 		for (let x=0; x<w; x=x+step) {
 			let m;
 			switch (multisample) {
@@ -75,8 +89,14 @@ function performWork(params) {
 			let didx = (y-y0)*w+x;
 			buffer[didx] = m;
 		}
+		if (performance.now() - t0 > 10) {
+			self.y0 = y;
+			self.workTimeout = setTimeout(performWork, 0);
+			return;
+		}
 	}
 	
+	self.workTimeout = -1;
 	self.postMessage({
 		type: "workDone",
 		success: true

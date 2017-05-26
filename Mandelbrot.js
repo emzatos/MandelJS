@@ -232,23 +232,28 @@ function frame() {
 	});
 }
 
-function updateDebug(){
+function updateDebug(extraItems=[]){
  	debugText.innerHTML = [
  		`10^${Math.log10((1/(view.scale/0.004))).toFixed(1)}x zoom`,
  		`${frameTime.scale}X: ${frameTime.time.toFixed(2)}s`
- 	].join("<br>");
+ 	].concat(extraItems).join("<br>");
 }
 
 async function renderParallel(view, step, multisample=0) {
 	ibuffer32.fill(0);
 
+	let success = true;
 	let promises = workerPool.map(async worker => {
 		//wait for computation
-		await worker.startWork({
+		let completed = await worker.startWork({
 			view: view.serialize(),
 			step: step,
 			multisample: multisample
 		});
+		if (!completed) {
+			success = false;
+			return;
+		}
 
 		//get buffer back from worker
 		let buffer = await worker.requestBuffer();
@@ -269,18 +274,25 @@ async function renderParallel(view, step, multisample=0) {
 	//wait for rendering
 	await Promise.all(promises);
 
-	//copy data back to canvas
-	idata.data.set(ibuffer8);
-	tctx.putImageData(idata,0,0);
+	if (success) {
+		//copy data back to canvas
+		idata.data.set(ibuffer8);
+		tctx.putImageData(idata,0,0);
 
-	//upscale to canvas
-	ctx.drawImage(tempcanvas,0,0,canvas.width*step,canvas.height*step);
-	return;
+		//upscale to canvas
+		ctx.drawImage(tempcanvas,0,0,canvas.width*step,canvas.height*step);
+	}
 }
 
-function refresh() {
+async function stopRendering() {
+	await Promise.all(workerPool.map(worker => worker.terminate()));
+	updateDebug(["STOPPED"]);
+}
+
+async function refresh() {
 	sampleScale = SCALE_MAX;
 	gfxDirty = true;
+	await stopRendering();
 }
 
 class MWorker {
@@ -291,8 +303,10 @@ class MWorker {
 		this.buffer = params.buffer;
 	}
 
-	terminate() {
-		this.worker.terminate();
+	async terminate() {
+		this.worker.postMessage({
+			type: "abort"
+		});
 	}
 
 	sendBuffer() {
@@ -314,14 +328,19 @@ class MWorker {
 	}
 
 	requestBuffer() {
+		if (this.buffer !== null)
+			throw new Error("Main thread already owns the buffer.");
+
 		return new Promise((resolve, reject) => {
 			this.worker.onmessage = (event) => {
-				if (event.data.success) {
-					this.buffer = event.data.buffer;
-					resolve(this.buffer);
-				}
-				else {
-					reject("AAA");
+				if (event.data.type === "sendBuffer") {
+					if (event.data.success) {
+						this.buffer = event.data.buffer;
+						resolve(this.buffer);
+					}
+					else {
+						reject("Failed to request buffer from worker.");
+					}
 				}
 			};
 			this.worker.postMessage({
@@ -336,12 +355,7 @@ class MWorker {
 
 		return new Promise((resolve, reject) => {
 			this.worker.onmessage = (event) => {
-				if (event.data.success) {
-					resolve();
-				}
-				else {
-					reject();
-				}
+				resolve(event.data.success);
 			};
 			this.worker.postMessage(Object.assign({
 				type: "startWork",

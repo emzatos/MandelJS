@@ -16,6 +16,11 @@ function enableZoomBtns() {
 	btnZoomOut.style.visibility = btnZoomIn.style.visibility = "visible";
 }
 
+document.addEventListener("keydown", function(event){
+	if (event.keyCode === 88) //X
+		stopRendering();
+}, false);
+
 //event listeners
 canvas.addEventListener("mousedown",function(event){
 	eDragStart(event.layerX, event.layerY)
