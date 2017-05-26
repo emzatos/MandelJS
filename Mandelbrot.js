@@ -146,16 +146,14 @@ function init() {
 	const N_WORKERS = 16;
 	workerPool = [];
 	for (let i=0; i<N_WORKERS; i++) {
-		let worker = new Worker("MandelWorker.js");
 		let y0 = Math.floor(i/N_WORKERS*view.h);
 		let y1 = Math.ceil((i+1)/N_WORKERS*view.h);
 		let buffer = new Float64Array((y1-y0)*view.w);
-		workerPool.push({
-			worker: worker,
+		workerPool.push(new MWorker({
 			y0: y0,
 			y1: y1,
 			buffer: buffer
-		});
+		}));
 	}
 
 	//start
@@ -215,7 +213,7 @@ function frame() {
 	}
 
 	//render whole screen
-	renderParallel(view, sampleScale, params.multisample, function(){
+	renderParallel(view, sampleScale, params.multisample).then(function(){
 		frameTime.scale = sampleScale;
 		frameTime.time = (Date.now() - frameTime.t0)/1000;
 		frameTime.t0 = Date.now();
@@ -241,57 +239,121 @@ function updateDebug(){
  	].join("<br>");
 }
 
-function renderParallel(view, step, multisample=0, callback) {
+async function renderParallel(view, step, multisample=0) {
 	ibuffer32.fill(0);
 	let invstep = 1/step;
 	let s = step;
 
-	let lock = 0;
-	for (let i=workerPool.length-1; i>=0; i--) {
-		let data = workerPool[i];
-		lock++;
-
-		// data.worker.terminate();
-		data.worker.onmessage = function(event) {
-			lock--;
-			let buffer = event.data.buffer;
-			let w = view.w, h = view.h;
-			data.buffer = buffer;
-
-			let offset = Math.floor(data.y0/step)*w;
-			let rows = Math.ceil((data.y1-data.y0)/step);
-			for (let row=0; row<rows; row=row+1) {
-				for (let col=0; col<w/step; col=col+1) {
-					let iSrc = row*step*w+col*step;
-					let iDst = offset+row*w+col;
-					ibuffer32[iDst] = colormap[buffer[iSrc]];
-				}
-			}
-
-			if (lock === 0) {
-				//copy data back to canvas
-				idata.data.set(ibuffer8);
-				tctx.putImageData(idata,0,0);
-
-				//upscale to canvas
-				ctx.drawImage(tempcanvas,0,0,canvas.width*step,canvas.height*step);
-				callback();
-			}
-		};
-		data.worker.postMessage({
-			buffer: data.buffer,
+	let promises = workerPool.map(worker => {
+		return worker.startWork({
 			view: view.serialize(),
 			step: s,
-			y0: data.y0,
-			y1: data.y1,
 			multisample: multisample
-		}, [data.buffer.buffer]);
-	}
+		});
+	});
+
+	//wait for rendering
+	await Promise.all(promises);
+
+	promises = workerPool.map(async worker => {
+		let buffer = await worker.requestBuffer();
+		let w = view.w, h = view.h;
+
+		let offset = Math.floor(worker.y0/step)*w;
+		let rows = Math.ceil((worker.y1-worker.y0)/step);
+		for (let row=0; row<rows; row=row+1) {
+			for (let col=0; col<w/step; col=col+1) {
+				let iSrc = row*step*w+col*step;
+				let iDst = offset+row*w+col;
+				ibuffer32[iDst] = colormap[buffer[iSrc]];
+			}
+		}
+	});
+
+	//wait for copying
+	await Promise.all(promises);
+
+	//copy data back to canvas
+	idata.data.set(ibuffer8);
+	tctx.putImageData(idata,0,0);
+
+	//upscale to canvas
+	ctx.drawImage(tempcanvas,0,0,canvas.width*step,canvas.height*step);
+	return;
 }
 
 function refresh() {
 	sampleScale = SCALE_MAX;
 	gfxDirty = true;
+}
+
+class MWorker {
+	constructor(params) {
+		this.worker = new Worker("MandelWorker.js");
+		this.y0 = params.y0;
+		this.y1 = params.y1;
+		this.buffer = params.buffer;
+	}
+
+	terminate() {
+		this.worker.terminate();
+	}
+
+	sendBuffer() {
+		if (this.buffer === null)
+			throw new Error("Main thread does not own the buffer.");
+
+		return new Promise((resolve) => {
+			this.worker.onmessage = (event) => {
+				resolve();
+			};
+
+			this.worker.postMessage({
+				type: "sendBuffer",
+				buffer: this.buffer
+			}, [this.buffer.buffer]);
+			
+			this.buffer = null;
+		});
+	}
+
+	requestBuffer() {
+		return new Promise((resolve, reject) => {
+			this.worker.onmessage = (event) => {
+				if (event.data.success) {
+					this.buffer = event.data.buffer;
+					resolve(this.buffer);
+				}
+				else {
+					reject("AAA");
+				}
+			};
+			this.worker.postMessage({
+				type: "requestBuffer"
+			});
+		});
+	}
+
+	async startWork(params) {
+		if (this.buffer !== null)
+			await this.sendBuffer();
+
+		return new Promise((resolve, reject) => {
+			this.worker.onmessage = (event) => {
+				if (event.data.success) {
+					resolve();
+				}
+				else {
+					reject();
+				}
+			};
+			this.worker.postMessage(Object.assign({
+				type: "startWork",
+				y0: this.y0,
+				y1: this.y1
+			}, params));
+		});
+	}
 }
 
 init();

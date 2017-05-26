@@ -1,12 +1,60 @@
+self.buffer = null;
 self.onmessage = function(event) {
-	let buffer = event.data.buffer;
-	let step = event.data.step;
-	let view = event.data.view;
-	let w = view.w;
-	let y0 = event.data.y0;
-	let y1 = event.data.y1;
-	let multisample = event.data.multisample
+	if (event.data.type === "startWork") {
+		performWork(event.data);
+	}
+	else if (event.data.type === "requestBuffer") {
+		let buffer = self.buffer;
+		if (buffer === null) {
+			self.postMessage({
+				type: "sendBuffer",
+				success: false,
+				buffer: null
+			});
+		}
+		else {
+			self.postMessage({
+				type: "sendBuffer",
+				success: true,
+				buffer: buffer
+			}, [buffer.buffer]);
+		}
+		self.buffer = null;
+	}
+	else if (event.data.type === "sendBuffer") {
+		self.buffer = event.data.buffer;
+		self.postMessage({
+			type: "ok"
+		});
+	}
+	else if (event.data.type === "ok") {
+		console.log("OK");
+	}
+	else {
+		throw new Error("Received unsupported message type.");
+	}
+};
 
+function performWork(params) {
+	//check to ensure ownership of buffer
+	let buffer = self.buffer;
+	if (buffer === null) {
+		self.postMessage({
+			type: "workDone",
+			success: false
+		});
+		return;
+	}
+
+	//alias params
+	let step = params.step;
+	let view = params.view;
+	let w = view.w;
+	let y0 = params.y0;
+	let y1 = params.y1;
+	let multisample = params.multisample
+
+	//do computation
 	let f = view.julia_flag ? julia : mandelbrot;
 	for (let y=y0; y<=y1; y=y+step) {
 		for (let x=0; x<w; x=x+step) {
@@ -28,8 +76,12 @@ self.onmessage = function(event) {
 			buffer[didx] = m;
 		}
 	}
-	self.postMessage({buffer: buffer}, [buffer.buffer]);
-};
+	
+	self.postMessage({
+		type: "workDone",
+		success: true
+	});
+}
 
 function mandelbrot(px, py, view) {
 	let x0 = ((px - view.w/2)*view.scale-view.x),
