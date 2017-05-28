@@ -1,5 +1,6 @@
 //var IMAX = 200;
-const ZOOM_RATE = 1.2;
+const N_WORKERS = navigator.hardwareConcurrency || 4;
+const ZOOM_RATE = 1.05;
 const USE_RECTS = false;
 let profile = false;
 let SCALE_MAX = 8;
@@ -14,6 +15,7 @@ let renderYstart = 0;
 let ibuffer, ibuffer8, ibuffer32, idata;
 let workerPool;
 let bufferCleared = true;
+let zoomSpeed = 0;
 
 let params = {
 	color1 : '#1C1D21',
@@ -147,7 +149,6 @@ function init() {
 	folder.close();
 
 	//prepare workers
-	const N_WORKERS = navigator.hardwareConcurrency || 4;
 	workerPool = [];
 	for (let i=0; i<N_WORKERS; i++) {
 		let y0 = Math.floor(i/N_WORKERS*view.h);
@@ -216,6 +217,11 @@ function frame() {
 		return;
 	}
 
+	if (zoomSpeed !== 0) {
+		view.scale *= Math.pow(ZOOM_RATE,zoomSpeed);
+		zoomSpeed -= Math.sign(zoomSpeed)*0.25;
+	}
+
 	//render whole screen
 	renderParallel(view, sampleScale, params.multisample).then(function(){
 		frameTime.scale = sampleScale;
@@ -223,11 +229,11 @@ function frame() {
 		frameTime.t0 = Date.now();
 
 		//progressively increase sample resolution
-		if (sampleScale>1) {
+		if (sampleScale>1 && zoomSpeed === 0) {
 			sampleScale = Math.max(1,Math.floor(sampleScale/2));
 			gfxDirty = true;
 		}
-		else {
+		else if (zoomSpeed === 0) {
 			gfxDirty = false;
 		}
 
@@ -292,7 +298,6 @@ async function renderParallel(view, step, multisample=0) {
 
 async function stopRendering() {
 	await Promise.all(workerPool.map(worker => worker.terminate()));
-	// updateDebug(["STOPPED"]);
 }
 
 async function refresh() {
