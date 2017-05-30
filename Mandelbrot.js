@@ -123,7 +123,7 @@ function init() {
 	gui.add({"Reset view": resetView}, "Reset view");
 	gui.add({"Export view": function(){
 		var download = function (){
-			window.location.href = document.getElementById('canvas').toDataURL("image/png").replace("image/png", "image/octet-stream");
+			window.open(document.getElementById('canvas').toDataURL("image/png"));
 		}
 
 		frameTime.scale == 1 ? download() : alert('Canvas not fully rendered');
