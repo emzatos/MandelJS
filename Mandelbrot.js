@@ -1,6 +1,6 @@
 //var IMAX = 200;
 const N_WORKERS = navigator.hardwareConcurrency || 4;
-const ZOOM_RATE = 1.05;
+const ZOOM_RATE = 1.005;
 const USE_RECTS = false;
 let profile = false;
 let SCALE_MAX = 8;
