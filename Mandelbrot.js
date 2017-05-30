@@ -24,10 +24,11 @@ let params = {
 	color4 : '#92CDCF',
 	color5 : '#EEEFF7',
 	multisample: 0,
+	julia_flag: false,
 	cRe: -0.8,
 	cIm: 0.166,
 	IMAX: 200,
-	julia_flag: false
+	displayGuides: true
 }
 
 var Json = {
@@ -140,7 +141,7 @@ function init() {
 
 	render_folder.add(view, 'IMAX', 10, 1000).step(1).onChange(updateColors);
 	render_folder.add(params, 'multisample', 0, 8).step(1).onChange(refresh);
-
+	render_folder.add(params, 'displayGuides');
 
 	let folder = gui.addFolder('Julia');
 	folder.add(view, 'julia_flag');
@@ -292,8 +293,24 @@ async function renderParallel(view, step, multisample=0) {
 
 	//upscale to canvas
 	ctx.drawImage(ibitmap,0,0,canvas.width*step,canvas.height*step);
-
 	ibitmap.close();
+
+	//draw guides
+	if (step > 1 && params.displayGuides) {
+		ctx.save();
+		ctx.globalCompositeOperation = "difference";
+		ctx.lineWidth = 2;
+		ctx.strokeStyle = "white";
+		ctx.setLineDash([2, 2]);
+		ctx.beginPath();
+		ctx.moveTo(Math.floor(canvas.width*0.5),0);
+		ctx.lineTo(Math.floor(canvas.width*0.5),canvas.height);
+		ctx.moveTo(0,Math.floor(canvas.height*0.5));
+		ctx.lineTo(canvas.width,Math.floor(canvas.height*0.5));
+		ctx.stroke();
+		ctx.closePath();
+		ctx.restore();
+	}
 }
 
 async function stopRendering() {
