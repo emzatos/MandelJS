@@ -103,7 +103,7 @@ function init() {
 
 	//parse view data contained in hash, if any
 	if (document.location.hash) {
-		let parsed = JSON.parse(document.location.hash.substring(1));
+		let parsed = JSON.parse(atob(document.location.hash.substring(1)));
 		view.deserialize(parsed);
 	}
 
@@ -116,7 +116,7 @@ function init() {
 		"Share view": function() {
 			prompt(
 				"Copy the link to share:", 
-				document.location.origin + document.location.pathname + "#" +JSON.stringify(view.sharable())
+				document.location.origin + document.location.pathname + "#" +btoa(JSON.stringify(view.sharable()))
 				);
 		}
 	}, "Share view");
