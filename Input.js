@@ -80,11 +80,11 @@ function eDrag(x,y) {
 }
 function eWheel(deltaY) {
 	if (deltaY < 0) {
-		zoomSpeed -= 1;
+		zoomSpeed -= 0.5;
 		refresh();
 	}
 	else if (deltaY > 0) {
-		zoomSpeed += 1;
+		zoomSpeed += 0.5;
 		refresh();
 	}
 }
