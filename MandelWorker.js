@@ -105,8 +105,8 @@ function performWork() {
 }
 
 function mandelbrot(px, py, view) {
-	let x0 = ((px - view.w/2)*view.scale-view.x),
-	y0 = ((py - view.h/2)*view.scale-view.y);
+	let x0 = ((px - view.w/2)*view.currentScale-view.x),
+	y0 = ((py - view.h/2)*view.currentScale-view.y);
 	
 	let q = (x0-0.25) * (x0-0.25) + y0*y0;
 	if (q * (q + (x0-0.25)) < y0 * y0 * 0.25 || (x0+1) * (x0+1) + y0*y0 < 0.0625) {
@@ -125,8 +125,8 @@ function mandelbrot(px, py, view) {
 }
 
 function julia(px,py, view) {
-	let x = ((px - view.w/2)*view.scale-view.x),
-	y = ((py - view.h/2)*view.scale-view.y);
+	let x = ((px - view.w/2)*view.currentScale-view.x),
+	y = ((py - view.h/2)*view.currentScale-view.y);
 	
 	let x2, y2;
 	var iteration = 0;

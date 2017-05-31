@@ -1,6 +1,6 @@
 //var IMAX = 200;
 const N_WORKERS = navigator.hardwareConcurrency || 4;
-const ZOOM_RATE = 1.005;
+const ZOOM_RATE = 1.1, ZOOM_QUICKNESS = 0.25;
 const USE_RECTS = false;
 let profile = false;
 let SCALE_MAX = 8;
@@ -15,7 +15,6 @@ let renderYstart = 0;
 let ibuffer, ibuffer8, ibuffer32, idata;
 let workerPool;
 let bufferCleared = true;
-let zoomSpeed = 0;
 
 let params = {
 	color1 : '#1C1D21',
@@ -175,6 +174,7 @@ function resetView() {
 		w: canvas.width,
 		h: canvas.height,
 		scale: 0.004,
+		currentScale: 0.004,
 		sampleScale: 1,
 		cRe: params.cRe,
 		cIm: params.cIm,
@@ -182,7 +182,7 @@ function resetView() {
 		IMAX: params.IMAX,
 		sharable: function() {
 			let obj = this.serialize();
-			let exclude = ["w","h","sampleScale"];
+			let exclude = ["w","h","sampleScale","currentScale"];
 			if (!obj.julia_flag)
 				Array.prototype.push.apply(exclude, ["julia_flag", "cRe", "cIm"]);
 			exclude.forEach(k => delete obj[k]);
@@ -218,9 +218,10 @@ function frame() {
 		return;
 	}
 
-	if (zoomSpeed !== 0) {
-		view.scale *= Math.pow(ZOOM_RATE,zoomSpeed);
-		zoomSpeed -= Math.sign(zoomSpeed)*0.25;
+	if (view.currentScale !== view.scale) {
+		view.currentScale = view.currentScale * (1-ZOOM_QUICKNESS) + view.scale * ZOOM_QUICKNESS;
+		if (Math.abs(1-view.scale/view.currentScale) < 0.01)
+			view.currentScale = view.scale;
 	}
 
 	//render whole screen
@@ -230,11 +231,11 @@ function frame() {
 		frameTime.t0 = Date.now();
 
 		//progressively increase sample resolution
-		if (sampleScale>1 && zoomSpeed === 0) {
+		if (sampleScale>1 && view.currentScale === view.scale) {
 			sampleScale = Math.max(1,Math.floor(sampleScale/2));
 			gfxDirty = true;
 		}
-		else if (zoomSpeed === 0) {
+		else if (view.currentScale === view.scale) {
 			gfxDirty = false;
 		}
 
@@ -296,7 +297,7 @@ async function renderParallel(view, step, multisample=0) {
 	ibitmap.close();
 
 	//draw guides
-	if (step > 1 && params.displayGuides) {
+	if (step > 2 && params.displayGuides) {
 		ctx.save();
 		ctx.globalCompositeOperation = "difference";
 		ctx.lineWidth = 2;

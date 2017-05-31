@@ -5,11 +5,11 @@ let viewStart = {x: 0, y: 0};
 let btnZoomIn = document.getElementById("zoomIn");
 let btnZoomOut = document.getElementById("zoomOut");
 btnZoomIn.addEventListener("touchstart", function(event){
-	eWheel(-1);
+	eWheel(-400);
 	event.preventDefault();
 }, false);
 btnZoomOut.addEventListener("touchstart", function(event){
-	eWheel(1);
+	eWheel(400);
 	event.preventDefault();
 }, false);
 function enableZoomBtns() {
@@ -73,18 +73,18 @@ function eDragEnd() {
 }
 function eDrag(x,y) {
 	if (dragging) {
-		view.x = viewStart.x + (x - dragStart.x)*view.scale;
-		view.y = viewStart.y + (y - dragStart.y)*view.scale;
+		view.x = viewStart.x + (x - dragStart.x)*view.currentScale;
+		view.y = viewStart.y + (y - dragStart.y)*view.currentScale;
 		refresh();
 	}
 }
 function eWheel(deltaY) {
 	if (deltaY < 0) {
-		zoomSpeed -= 0.5;
+		view.scale /= Math.pow(ZOOM_RATE,Math.abs(deltaY/100));
 		refresh();
 	}
 	else if (deltaY > 0) {
-		zoomSpeed += 0.5;
+		view.scale *= Math.pow(ZOOM_RATE,Math.abs(deltaY/100));
 		refresh();
 	}
 }
