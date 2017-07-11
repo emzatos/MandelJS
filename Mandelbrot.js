@@ -1,7 +1,8 @@
 //var IMAX = 200;
 const N_WORKERS = navigator.hardwareConcurrency || 4;
-const ZOOM_RATE = 1.1, ZOOM_QUICKNESS = 0.25;
+const ZOOM_RATE = 1.2, ZOOM_QUICKNESS = 0.2;
 const USE_RECTS = false;
+let MAX_SCALE, MIN_SCALE;
 let profile = false;
 let SCALE_MAX = 8;
 let sampleScale = SCALE_MAX;
@@ -200,6 +201,8 @@ function resetView() {
 			return obj;
 		}
 	};
+	MAX_SCALE = view.scale * 10;
+	MIN_SCALE = view.scale / 10e13;
 }
 
 function updateColors(){
@@ -218,6 +221,7 @@ function frame() {
 		return;
 	}
 
+	view.scale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, view.scale));
 	if (view.currentScale !== view.scale) {
 		view.currentScale = view.currentScale * (1-ZOOM_QUICKNESS) + view.scale * ZOOM_QUICKNESS;
 		if (Math.abs(1-view.scale/view.currentScale) < 0.01)
@@ -231,7 +235,7 @@ function frame() {
 		frameTime.t0 = Date.now();
 
 		//progressively increase sample resolution
-		if (sampleScale>1 && view.currentScale === view.scale) {
+		if (sampleScale>1 && view.currentScale === view.scale && !dragging) {
 			sampleScale = Math.max(1,Math.floor(sampleScale/2));
 			gfxDirty = true;
 		}
@@ -300,14 +304,15 @@ async function renderParallel(view, step, multisample=0) {
 	if (step > 2 && params.displayGuides) {
 		ctx.save();
 		ctx.globalCompositeOperation = "difference";
-		ctx.lineWidth = 2;
+		ctx.lineWidth = 1;
 		ctx.strokeStyle = "white";
-		ctx.setLineDash([2, 2]);
+		// ctx.setLineDash([1, 2]);
+		ctx.translate(~~(canvas.width*0.5)-0.5,~~(canvas.height*0.5)-0.5);
 		ctx.beginPath();
-		ctx.moveTo(Math.floor(canvas.width*0.5),0);
-		ctx.lineTo(Math.floor(canvas.width*0.5),canvas.height);
-		ctx.moveTo(0,Math.floor(canvas.height*0.5));
-		ctx.lineTo(canvas.width,Math.floor(canvas.height*0.5));
+		ctx.moveTo(-16,0);
+		ctx.lineTo(16,0);
+		ctx.moveTo(0,-16);
+		ctx.lineTo(0,16);
 		ctx.stroke();
 		ctx.closePath();
 		ctx.restore();
